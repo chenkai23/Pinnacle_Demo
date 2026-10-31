@@ -9,7 +9,17 @@
   loopback-only Compose port and context exclusions for books and environment files.
 - Added Docker configuration coverage and a repeatable Linux smoke script that
   checks readiness, runtime user, HTTP response and referenced static assets.
-- Validation and duration: in progress; Linux results will be recorded after execution.
+- Validation: 6 Vitest tests and TypeScript checking passed locally. On Ubuntu
+  22.04 x86_64 (Docker 29.5.3, Compose v5.1.4), a fresh image build and startup
+  passed, followed by Compose down and a second one-command build/start using
+  the build cache. Both smoke runs passed: non-root UID, HTTP 200 and 9 static
+  assets returning 200. Host loopback HTTP also returned 200; container was healthy.
+- First Linux build took approximately 190 seconds, including dependency/image
+  downloads. Total interactive work approximately 8 minutes (estimate).
+- Validation directory: /root/epub-reader-docker-734dee3. Stopped and removed the
+  test container/network after verification; kept source and image for reruns.
+  Existing containers were untouched. No public deployment or browser acceptance
+  was performed in this Docker validation.
 - Initial Linux execution exposed Windows CRLF in the archived shell script.
   Added explicit LF Git attributes and a regression check before retrying.
 

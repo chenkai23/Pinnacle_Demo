@@ -21,6 +21,12 @@ Run the repeatable Linux smoke test (build, readiness, HTTP and static assets):
 sh scripts/docker-smoke.sh
 ```
 
+Validated on Ubuntu 22.04 x86_64 with Docker 29.5.3 and Compose v5.1.4:
+fresh build/start and a second start after `docker compose down` both passed.
+The smoke checks confirmed a healthy non-root container, HTTP 200 and all nine
+referenced static assets returning 200. This validates Linux packaging/startup;
+it does not replace browser-level reading acceptance.
+
 The port binds to loopback only: http://localhost:3000 on the Docker host.
 This is a Linux Docker startup validation, not a public deployment. Browser
 book storage stays in IndexedDB/localStorage; no server data volume is needed.
