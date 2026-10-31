@@ -1,4 +1,20 @@
-# AI workflow
+# AI Workflow
+
+## 2026-10-31 — Repository cleanup and documentation
+
+- Tools: Codex terminal/apply_patch, Vitest, TypeScript and Playwright.
+- Removed the redundant standalone acceptance report; retained source, tests,
+  test EPUBs, configuration and the repeatable Linux Docker smoke script.
+- Reduced README to introduction, npm/Docker environments and startup, and
+  architecture. Standardized dated workflow headings without increment prefixes;
+  preserved historical steps and results. Removed obsolete build-cache type path.
+- Added documentation checks for actual startup scripts, local links, section
+  scope and consistent workflow headings.
+- Validation: 9 Vitest tests, TypeScript checking and all 8 browser tests passed.
+  Removed old .next-check/.next-e2e output, test results and TypeScript cache
+  after verification. Kept the current development build and installed dependencies.
+- Duration: approximately 4 minutes (estimate). Changes committed at user request,
+  including the previously local fixture verification notes; no push.
 
 ## 2026-10-31 — Include the two EPUB test fixtures
 
@@ -9,7 +25,13 @@
 - Updated real-book browser fixture paths, documentation, fixture ZIP metadata
   checks and the Linux smoke test to assert both files exist in the runtime.
 - Tools: Codex terminal/apply_patch, Vitest, TypeScript, Playwright and SSH/Docker.
-- Validation in progress; server image result will be recorded after execution.
+- Validation: 7 Vitest tests, TypeScript and all 8 browser tests passed, including
+  both real-book cases without skips. Linux image build and smoke test passed:
+  both /app/ebook files readable, healthy non-root runtime, HTTP 200 and 9 assets.
+  Source uploaded to /root/epub-reader-ebooks-567ba05; temporary validation
+  container/network removed, existing reader container left running.
+- Duration: approximately 5 minutes (estimate). Final verification notes kept
+  local without an additional Git commit, following the user's preference.
 
 ## 2026-10-31 — Linux Docker startup validation
 
@@ -117,7 +139,7 @@ TypeScript and production build passed.
   final standalone TypeScript check. Reader/shelf screenshots inspected locally.
 
 
-## 2026-10-31 — Increment 8: light/dark reading themes
+## 2026-10-31 — Light/dark reading themes
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
 - Read AGENTS.md, existing settings code, reader and stylesheet before implementation.
@@ -134,7 +156,7 @@ TypeScript and production build passed.
   strengthened author-color theme checks also passed separately; production build
   and TypeScript checking passed. No dependencies were added.
 
-## 2026-10-31 — Increment 7: font size preference
+## 2026-10-31 — Font size preference
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
 - Read AGENTS.md and existing reader, progress and test code before implementation.
@@ -152,7 +174,7 @@ TypeScript and production build passed.
   the existing Alice regression; production build and TypeScript checking passed.
   No dependencies were added.
 
-## 2026-10-31 — Increment 6: previous/next screen controls
+## 2026-10-31 — Previous/next screen controls
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
 - Read AGENTS.md and epub.js rendition/continuous-manager implementation.
@@ -168,7 +190,7 @@ TypeScript and production build passed.
 - Final validation: 5 component tests and 6 Edge browser tests passed; production
   build and TypeScript checking passed. No dependencies were added.
 
-## 2026-10-31 — Increment 5: chapter navigation
+## 2026-10-31 — Chapter navigation
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
 - Read AGENTS.md and installed epub.js navigation/section APIs.
@@ -187,7 +209,7 @@ TypeScript and production build passed.
   headings on a short page can share one viewport, rather than each becoming
   the current entry merely because it was clicked.
 
-## 2026-10-31 — Increment 4: reading position recovery
+## 2026-10-31 — Reading position recovery
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Playwright/Edge and Vitest.
 - Read AGENTS.md; inspected installed epub.js API types and implementation for
@@ -206,7 +228,7 @@ TypeScript and production build passed.
 - Final validation: 3 component tests and all 4 Edge browser tests passed;
   production build and TypeScript checking passed. No dependencies were added.
 
-## 2026-10-31 — Increment 3: local book persistence
+## 2026-10-31 — Local book persistence
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
 - Read AGENTS.md and inspected current code before implementation.
@@ -222,7 +244,7 @@ TypeScript and production build passed.
   and TypeScript checking passed. No external service or new dependency was added.
 - Time: approximately 5 minutes (estimate; no exact timer recorded).
 
-## 2026-10-31 — Increment 2: EPUB import and rendering
+## 2026-10-31 — EPUB import and rendering
 
 - Tool: OpenAI Codex desktop; terminal, apply_patch, Vitest and Playwright/Edge.
 - Read AGENTS.md; consulted the official epub.js README for rendering and its
@@ -241,7 +263,7 @@ TypeScript and production build passed.
   avoid interfering with a running development server.
 - Time: approximately 10 minutes (estimate, no exact start timer recorded).
 
-## 2026-10-31 — Increment 1: application foundation
+## 2026-10-31 — Application foundation
 
 - Tool: OpenAI Codex desktop (terminal and apply_patch); frontend-design skill
   used for layout and typography guidance. Sites skill consulted for local-only
