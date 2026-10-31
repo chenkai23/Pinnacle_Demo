@@ -34,6 +34,8 @@ flowchart TD
     Validation --> Epub
     Validation --> Storage[IndexedDB: current book]
     Storage --> Shell
+    Epub --> Position[localStorage: CFI keyed by file SHA-256]
+    Position --> Epub
 ```
 
 ## Current scope and limitations
@@ -48,7 +50,13 @@ browser and origin. Replacement is committed to storage before switching the
 reader; a failed write leaves the previous book intact. Clearing site data deletes
 the book. Private browsing and storage quotas may limit persistence.
 
-Reading position is not yet saved: refresh reopens the start of the book.
+Reading position is saved as an EPUB CFI in localStorage, keyed by the SHA-256
+hash of the file bytes. Refresh or reimporting the same file restores the position;
+different files do not share progress even if their names or metadata match.
+The renderer may round the restored location to a nearby line in the same paragraph.
+Invalid saved positions fall back to the beginning. Storage failures show a notice
+and do not prevent reading. Allow a moment after scrolling for position updates.
+
 Page buttons, chapter navigation, settings, a standalone sample EPUB and Docker
 support remain future increments.
 No backend, external API or remote font is used.
@@ -56,6 +64,8 @@ No backend, external API or remote font is used.
 Browser tests require Microsoft Edge (`npx playwright install msedge` if absent).
 They generate a small EPUB in memory to check rendering, replacement, invalid input,
 script sandboxing, refresh recovery, corrupt stored data and storage failures.
+They also check CFI recovery after a single scroll, per-file isolation, reimporting
+a renamed file, invalid CFI fallback and unavailable position storage.
 An additional test uses the optional root-level file
 `Alice's Adventures in Wonderland by Lewis Carroll.epub` when present. Root EPUBs
 are ignored by Git and are never served as public assets.

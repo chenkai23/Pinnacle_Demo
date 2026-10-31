@@ -1,5 +1,24 @@
 # AI workflow
 
+## 2026-10-31 — Increment 4: reading position recovery
+
+- Tool: OpenAI Codex desktop, terminal/apply_patch, Playwright/Edge and Vitest.
+- Read AGENTS.md; inspected installed epub.js API types and implementation for
+  CFI relocation events, rendering and continuous-scroll behavior.
+- Save EPUB CFI in localStorage by SHA-256 of the complete file, avoiding name or
+  metadata collisions. Restore before enabling position writes; flush the latest
+  reported CFI on pagehide and cleanup. Invalid positions fall back to the start;
+  position-storage errors show a notice without blocking reading.
+- A real-browser test caught suppression of the first scroll in continuous mode.
+  Added a debounced capture listener to request a location report after scrolling.
+- Tests check scrolling/refresh, different files with the same name and metadata
+  identifier, renamed identical bytes, invalid saved CFI and failed localStorage writes.
+- Renderer precision: restored ranges can round to a nearby line; tests assert the
+  same paragraph and a nonzero restored scroll position rather than exact pixels.
+- Time: approximately 10 minutes (estimate, not a precise timer).
+- Final validation: 3 component tests and all 4 Edge browser tests passed;
+  production build and TypeScript checking passed. No dependencies were added.
+
 ## 2026-10-31 — Increment 3: local book persistence
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.

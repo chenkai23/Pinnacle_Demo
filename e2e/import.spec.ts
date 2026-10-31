@@ -3,13 +3,14 @@ import JSZip from "jszip";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-async function sample(title: string) {
+async function sample(title: string, long = false) {
   const zip = new JSZip();
   zip.file("mimetype", "application/epub+zip");
   zip.file("META-INF/container.xml", '<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>');
   zip.file("book.opf", `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">sample</dc:identifier><dc:title>${title}</dc:title><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/></manifest><spine><itemref idref="chapter"/></spine></package>`);
   zip.file("nav.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Chapter</a></li></ol></nav></body></html>');
   zip.file("chapter.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title></head><body><h1>${title}</h1><p>A quiet afternoon in the garden.</p><script>parent.document.body.dataset.bookScript="executed"</script></body></html>`);
+  if (long) zip.file("chapter.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title></head><body><h1>${title}</h1>${Array.from({ length: 120 }, (_, i) => `<p>Paragraph ${i}. Alice walked through the garden, wondering where the rabbit had gone. The afternoon was quiet and the path stretched ahead.</p>`).join("")}</body></html>`);
   return zip.generateAsync({ type: "nodebuffer" });
 }
 
@@ -89,4 +90,45 @@ test("renders the locally supplied Alice EPUB", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/Alice/i);
   await expect(page.locator("iframe").first()).toBeVisible();
+});
+
+test("restores CFI after scrolling and isolates positions by file content", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  const buffer = await sample("Long story", true);
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "long.epub", mimeType: "application/epub+zip", buffer });
+  await expect(page.frameLocator("iframe").first().getByText(/^Paragraph 0\./)).toBeVisible();
+  const position = () => page.evaluate(() => Object.entries(localStorage).find(([key]) => key.startsWith("epub-position:")) || []);
+  await expect.poll(async () => (await position())[1]).toMatch(/^epubcfi/);
+  const initial = (await position())[1];
+  await page.locator(".epub-container").evaluate(element => { element.scrollTop = 2500; });
+  await expect.poll(async () => (await position())[1]).not.toBe(initial);
+  const [key, cfi] = await position();
+  await page.reload();
+  await expect(page.locator("iframe").first()).toBeVisible();
+  await expect.poll(() => page.locator(".epub-container").evaluate(el => el.scrollTop)).toBeGreaterThan(2000);
+  // epub.js rounds restored text ranges to a line; assert the same paragraph.
+  await expect.poll(async () => (await page.evaluate(key => localStorage.getItem(key), key))?.split(":")[0]).toBe(cfi.split(":")[0]);
+  const restoredCfi = await page.evaluate(key => localStorage.getItem(key), key);
+
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "long.epub", mimeType: "application/epub+zip", buffer: await sample("Different book", true) });
+  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Different book");
+  await expect.poll(() => page.locator(".epub-container").evaluate(el => el.scrollTop)).toBe(0);
+  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(restoredCfi);
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "renamed.epub", mimeType: "application/epub+zip", buffer });
+  await expect.poll(() => page.locator(".epub-container").evaluate(el => el.scrollTop)).toBeGreaterThan(2000);
+
+  await page.addInitScript(key => {
+    if (sessionStorage.getItem("inject-bad-position")) return;
+    localStorage.setItem(key, "invalid-cfi");
+    sessionStorage.setItem("inject-bad-position", "done");
+  }, key);
+  await page.reload();
+  await expect(page.getByText("无法恢复阅读位置，已从开头打开。你仍可继续阅读。")).toBeVisible();
+  await expect(page.locator(".epub-container")).toBeVisible();
+  await expect.poll(() => page.locator(".epub-container").evaluate(el => el.scrollTop)).toBe(0);
+  await page.addInitScript(() => { Storage.prototype.setItem = () => { throw new DOMException("Full", "QuotaExceededError"); }; });
+  await page.reload();
+  await expect(page.getByText("阅读位置无法保存，请检查浏览器存储权限或空间。你仍可继续阅读。")).toBeVisible();
+  await expect(page.frameLocator("iframe").first().getByText(/^Paragraph 0\./)).toBeVisible();
 });
