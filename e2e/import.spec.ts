@@ -6,290 +6,434 @@ import path from "node:path";
 async function sample(title: string, long = false) {
   const zip = new JSZip();
   zip.file("mimetype", "application/epub+zip");
-  zip.file("META-INF/container.xml", '<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>');
-  zip.file("book.opf", `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">sample</dc:identifier><dc:title>${title}</dc:title><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/></manifest><spine><itemref idref="chapter"/></spine></package>`);
-  zip.file("nav.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Chapter</a></li></ol></nav></body></html>');
-  zip.file("chapter.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title></head><body><h1>${title}</h1><p>A quiet afternoon in the garden.</p><script>parent.document.body.dataset.bookScript="executed"</script></body></html>`);
-  if (long) zip.file("chapter.xhtml", `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title></head><body><h1>${title}</h1>${Array.from({ length: 120 }, (_, i) => `<p>Paragraph ${i}. Alice walked through the garden, wondering where the rabbit had gone. The afternoon was quiet and the path stretched ahead.</p>`).join("")}</body></html>`);
+  zip.file(
+    "META-INF/container.xml",
+    '<?xml version="1.0"?><container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
+  );
+  zip.file(
+    "book.opf",
+    `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">sample</dc:identifier><dc:title>${title}</dc:title><dc:language>en</dc:language></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/></manifest><spine><itemref idref="chapter"/></spine></package>`,
+  );
+  zip.file(
+    "nav.xhtml",
+    '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">Chapter</a></li></ol></nav></body></html>',
+  );
+  zip.file(
+    "chapter.xhtml",
+    `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title></head><body><h1>${title}</h1><p>A quiet afternoon in the garden.</p><script>parent.document.body.dataset.bookScript="executed"</script></body></html>`,
+  );
+  if (long)
+    zip.file(
+      "chapter.xhtml",
+      `<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${title}</title></head><body><h1>${title}</h1>${Array.from({ length: 120 }, (_, i) => `<p>Paragraph ${i}. Alice walked through the garden, wondering where the rabbit had gone. The afternoon was quiet and the path stretched ahead.</p>`).join("")}</body></html>`,
+    );
   return zip.generateAsync({ type: "nodebuffer" });
 }
 
-test("imports, renders safely, keeps book on invalid input, and replaces book", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  const input = page.getByLabel("选择 EPUB 文件");
-  await input.setInputFiles({ name: "sample.epub", mimeType: "application/epub+zip", buffer: await sample("Garden story") });
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Garden story");
-  const frame = page.frameLocator("iframe").first();
-  await expect(frame.getByText("A quiet afternoon in the garden.")).toBeVisible();
-  await page.reload();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Garden story");
-  await expect(page.frameLocator("iframe").first().getByText("A quiet afternoon in the garden.")).toBeVisible();
-  await expect(page.locator("iframe").first()).not.toHaveAttribute("sandbox", /allow-scripts/);
-  expect(await page.locator("body").getAttribute("data-book-script")).toBeNull();
-  await input.setInputFiles({ name: "broken.epub", mimeType: "application/epub+zip", buffer: Buffer.from("broken") });
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("文件损坏");
-  await expect(frame.getByText("A quiet afternoon in the garden.")).toBeVisible();
-  await page.reload();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Garden story");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await input.setInputFiles({ name: "replacement.epub", mimeType: "application/epub+zip", buffer: await sample("Another story") });
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Another story");
-  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Another story");
-  await page.reload();
-  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Another story");
-
-  // A failed write must not replace the durable book or current reader.
-  await page.evaluate(() => { IDBObjectStore.prototype.put = () => { throw new DOMException("Full", "QuotaExceededError"); }; });
-  await input.setInputFiles({ name: "unsaved.epub", mimeType: "application/epub+zip", buffer: await sample("Unsaved story") });
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("无法保存书籍");
-  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Another story");
-  await page.reload();
-  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Another story");
-});
-
-test("recovers from corrupt stored data and reports unavailable storage", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.evaluate(() => new Promise<void>((resolve, reject) => {
-    const request = indexedDB.open("local-epub-reader", 1);
-    request.onsuccess = () => {
-      const db = request.result;
-      const tx = db.transaction("books", "readwrite");
-      tx.objectStore("books").put({ name: "corrupt.epub", data: new ArrayBuffer(4) }, "current");
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onabort = () => reject(tx.error);
-    };
-    request.onerror = () => reject(request.error);
-  }));
-  await page.reload();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("无法恢复本地书籍");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "recovered.epub", mimeType: "application/epub+zip", buffer: await sample("Recovered story") });
-  await page.reload();
-  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Recovered story");
-
-  await page.addInitScript(() => {
-    IDBFactory.prototype.open = () => { throw new DOMException("Blocked", "SecurityError"); };
+test.beforeEach(async ({ page }) => {
+  page.on("pageerror", (error) => {
+    throw error;
   });
-  await page.reload();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("无法恢复本地书籍");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
 });
-
-test("renders the locally supplied Alice EPUB", async ({ page }) => {
-  const file = path.resolve("Alice's Adventures in Wonderland by Lewis Carroll.epub");
-  test.skip(!existsSync(file), "Optional local book is not tracked in Git");
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.getByLabel("选择 EPUB 文件").setInputFiles(file);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(/Alice/i);
-  await expect(page.locator("iframe").first()).toBeVisible();
-  await expect.poll(async () => (await Promise.all(page.frames().slice(1).map(f => f.locator("body").textContent().catch(() => "")))).join(" ")).toMatch(/Alice|Wonderland/i);
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
-  const aliceChapter = page.getByRole("navigation", { name: "章节导航" }).getByRole("button", { name: "CHAPTER II. The Pool of Tears", exact: true });
-  await expect(aliceChapter).toBeEnabled();
-  await aliceChapter.click();
-  await expect(aliceChapter).toHaveAttribute("aria-current", "location");
-  await page.reload();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(/Alice/i);
-  await expect(page.locator("iframe").first()).toBeVisible();
-  await expect(aliceChapter).toHaveAttribute("aria-current", "location");
-});
-
-test("restores CFI after scrolling and isolates positions by file content", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  const buffer = await sample("Long story", true);
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "long.epub", mimeType: "application/epub+zip", buffer });
-  await expect(page.frameLocator("iframe").first().getByText(/^Paragraph 0\./)).toBeVisible();
-  const position = () => page.evaluate(() => Object.entries(localStorage).find(([key]) => key.startsWith("epub-position:")) || []);
-  await expect.poll(async () => (await position())[1]).toMatch(/^epubcfi/);
-  const initial = (await position())[1];
-  await page.locator(".epub-container").evaluate(element => { element.scrollTop = 2500; });
-  await expect.poll(async () => (await position())[1]).not.toBe(initial);
-  const [key, cfi] = await position();
-  await page.reload();
-  await expect(page.locator("iframe").first()).toBeVisible();
-  await expect.poll(() => page.locator(".epub-container").evaluate(el => el.scrollTop)).toBeGreaterThan(2000);
-  // epub.js rounds restored text ranges to a line; assert the same paragraph.
-  await expect.poll(async () => (await page.evaluate(key => localStorage.getItem(key), key))?.split(":")[0]).toBe(cfi.split(":")[0]);
-  const restoredCfi = await page.evaluate(key => localStorage.getItem(key), key);
-
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "long.epub", mimeType: "application/epub+zip", buffer: await sample("Different book", true) });
-  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Different book");
-  await expect.poll(() => page.locator(".epub-container").evaluate(el => el.scrollTop)).toBe(0);
-  expect(await page.evaluate(key => localStorage.getItem(key), key)).toBe(restoredCfi);
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "renamed.epub", mimeType: "application/epub+zip", buffer });
-  await expect.poll(() => page.locator(".epub-container").evaluate(el => el.scrollTop)).toBeGreaterThan(2000);
-
-  await page.addInitScript(key => {
-    if (sessionStorage.getItem("inject-bad-position")) return;
-    localStorage.setItem(key, "invalid-cfi");
-    sessionStorage.setItem("inject-bad-position", "done");
-  }, key);
-  await page.reload();
-  await expect(page.getByText("无法恢复阅读位置，已从开头打开。你仍可继续阅读。")).toBeVisible();
-  await expect(page.locator(".epub-container")).toBeVisible();
-  await expect.poll(() => page.locator(".epub-container").evaluate(el => el.scrollTop)).toBe(0);
-  await page.addInitScript(() => { Storage.prototype.setItem = () => { throw new DOMException("Full", "QuotaExceededError"); }; });
-  await page.reload();
-  await expect(page.getByText("阅读位置无法保存，请检查浏览器存储权限或空间。你仍可继续阅读。")).toBeVisible();
-  await expect(page.frameLocator("iframe").first().getByText(/^Paragraph 0\./)).toBeVisible();
-});
-
-test("navigates nested chapters, restores selection and clears old book contents", async ({ page }) => {
-  const zip = await JSZip.loadAsync(await sample("Chapter book"));
-  const opf = await zip.file("book.opf")!.async("string");
-  zip.file("book.opf", opf.replace("</manifest>", '<item id="second" href="second.xhtml" media-type="application/xhtml+xml"/></manifest>').replace("</spine>", '<itemref idref="second"/></spine>'));
-  zip.file("nav.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">First chapter</a></li><li><a href="second.xhtml">Second chapter</a><ol><li><a href="second.xhtml#nested">Nested section</a></li></ol></li><li><a href="missing.xhtml">Broken chapter</a></li></ol></nav></body></html>');
-  zip.file("second.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Second</title></head><body><h1>Second chapter body</h1>' + '<p>A long walk through the garden.</p>'.repeat(30) + '<h2 id="nested">Nested section body</h2>' + '<p>The rabbit was waiting.</p>'.repeat(50) + '</body></html>');
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "chapters.epub", mimeType: "application/epub+zip", buffer: await zip.generateAsync({ type: "nodebuffer" }) });
-  const nav = page.getByRole("navigation", { name: "章节导航" });
-  await expect(nav.getByRole("button", { name: "First chapter" })).toHaveAttribute("aria-current", "location");
-  await expect(page.getByRole("button", { name: "上一页" })).toBeDisabled();
-  await page.getByRole("button", { name: "下一页" }).click();
-  await expect(nav.getByRole("button", { name: "Second chapter", exact: true })).toHaveAttribute("aria-current", "location");
-  await page.getByRole("button", { name: "上一页" }).click();
-  await expect(nav.getByRole("button", { name: "First chapter" })).toHaveAttribute("aria-current", "location");
-  await nav.getByRole("button", { name: "Nested section", exact: true }).click();
-  await expect(page.frameLocator("iframe").last().getByRole("heading", { name: "Nested section body" })).toBeInViewport();
-  await expect(nav.getByRole("button", { name: "Nested section", exact: true })).toHaveAttribute("aria-current", "location");
-  await page.reload();
-  await expect(nav.getByRole("button", { name: "Nested section", exact: true })).toHaveAttribute("aria-current", "location");
-  await page.getByRole("button", { name: "目录", exact: true }).click();
-  await expect(nav).not.toBeVisible();
-  await page.getByRole("button", { name: "目录", exact: true }).click();
-  await nav.getByRole("button", { name: "Broken chapter" }).click();
-  await expect(page.getByText("无法跳转到该章节，请选择其他章节或继续滚动阅读。")).toBeVisible();
-  await nav.getByRole("button", { name: "First chapter" }).click();
-  await expect(nav.getByRole("button", { name: "First chapter" })).toHaveAttribute("aria-current", "location");
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "new.epub", mimeType: "application/epub+zip", buffer: await sample("New book") });
-  await expect(nav.getByRole("button", { name: "Chapter", exact: true })).toBeEnabled();
-  await expect(nav.getByRole("button", { name: "Second chapter" })).toHaveCount(0);
-});
-
-test("turns one screen, restores progress, and stops at book boundaries", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "pages.epub", mimeType: "application/epub+zip", buffer: await sample("Page test", true) });
-  const previous = page.getByRole("button", { name: "上一页" });
-  const next = page.getByRole("button", { name: "下一页" });
-  await expect(next).toBeEnabled();
-  await expect(previous).toBeDisabled();
-  const scroller = page.locator(".epub-container");
-  const height = await scroller.evaluate(el => el.clientHeight);
-  await next.click();
-  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(height - 5);
-  await expect(previous).toBeEnabled();
-  await expect.poll(() => page.evaluate(() => Object.entries(localStorage).find(([k]) => k.startsWith("epub-position:"))?.[1])).not.toContain("/4/2/1:0)");
-  await page.reload();
-  await expect(previous).toBeEnabled();
-  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(height - 80);
-  await previous.click();
-  // CFI restoration rounds to lines; return to exact top with another press if needed.
-  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeLessThan(80);
-  if (await scroller.evaluate(el => el.scrollTop > 1)) {
-    await expect(previous).toBeEnabled();
-    await previous.click();
+test.afterEach(async ({ page }, info) => {
+  if (info.status !== info.expectedStatus) {
+    console.log(
+      await page
+        .locator(".epub-reader")
+        .innerText({ timeout: 1000 })
+        .catch(() => ""),
+    );
+    await page.screenshot({ path: "test-results/failure.png" });
   }
-  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBe(0);
-  await expect(previous).toBeDisabled();
-  await scroller.evaluate(el => { el.scrollTop = el.scrollHeight; });
-  await expect(page.getByText("已到结尾", { exact: true })).toBeVisible();
-  await expect(next).toBeDisabled();
-  await expect(previous).toBeEnabled();
-  await previous.click();
-  await expect(next).toBeEnabled();
-  await next.click();
-  await expect(page.getByText("已到结尾", { exact: true })).toBeVisible();
-  await expect(next).toBeDisabled();
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "short.epub", mimeType: "application/epub+zip", buffer: await sample("Short book") });
-  await expect(page.getByText("全文已显示")).toBeVisible();
-  await expect(previous).toBeDisabled();
-  await expect(next).toBeDisabled();
 });
-
-test("applies font size, preserves the paragraph and restores settings", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "font.epub", mimeType: "application/epub+zip", buffer: await sample("Font test", true) });
+async function upload(page: import("@playwright/test").Page, title: string) {
+  await expect(
+    page.getByRole("button", { name: "导入 EPUB", exact: true }),
+  ).toBeEnabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({
+    name: title + ".epub",
+    mimeType: "application/epub+zip",
+    buffer: await sample(title, true),
+  });
+  await expect(
+    page.getByRole("tab", { name: title, exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("button", { name: "下一页" })).toBeEnabled();
-  const paragraph = () => page.evaluate(() => Object.entries(localStorage).find(([k]) => k.startsWith("epub-position:"))?.[1]?.split(":")[0]);
-  await page.locator(".epub-container").evaluate(el => { el.scrollTop = 2500; });
-  await expect.poll(paragraph).not.toBe("epubcfi(/6/2!/4/2/1");
-  const before = await paragraph();
-  await page.getByRole("button", { name: "阅读设置" }).click();
+}
+test("bookshelf, independent tabs, pagination, settings, refresh and bulk deletion", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await upload(page, "Garden story");
+  await expect(page.locator("iframe").first()).not.toHaveAttribute(
+    "sandbox",
+    /allow-scripts/,
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Object.keys(localStorage).filter((k) =>
+            k.startsWith("epub-position:"),
+          ).length,
+      ),
+    )
+    .toBe(1);
+  const positionKey = await page.evaluate(() =>
+    Object.keys(localStorage).find((k) => k.startsWith("epub-position:"))!,
+  );
+  const cfi = () =>
+    page.evaluate((key) => localStorage.getItem(key), positionKey);
+  await expect.poll(cfi).toMatch(/^epubcfi/);
+  const first = await cfi();
+  await page.getByRole("button", { name: "下一页" }).click();
+  await expect.poll(cfi).not.toBe(first);
+  const saved = await cfi();
+  await expect(page.locator(".page-controls")).toContainText(
+    /本章 \d+ \/ \d+ 页/,
+  );
+  await expect(page.locator(".page-controls")).toContainText(/\d+%/);
+  await page.mouse.wheel(0, 800);
+  expect(
+    await page.locator(".epub-container").evaluate((el) => el.scrollTop),
+  ).toBe(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollHeight <= innerHeight,
+    ),
+  ).toBe(true);
+  await upload(page, "Second story");
+  await page.getByRole("tab", { name: "Garden story", exact: true }).click();
+  await expect(page.getByRole("button", { name: "上一页" })).toBeEnabled();
+  await expect.poll(cfi).toBe(saved);
+  await page.getByRole("button", { name: "排版", exact: true }).click();
+  await page.getByLabel("视图", { exact: true }).selectOption("single");
+  await page.getByLabel("字体", { exact: true }).selectOption("sans");
   await page.getByLabel("正文字号").selectOption("24");
-  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => getComputedStyle(el).fontSize)).toBe("24px");
-  await expect.poll(paragraph).toBe(before);
-  await page.reload();
-  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => getComputedStyle(el).fontSize)).toBe("24px");
-  await expect.poll(paragraph).toBe(before);
-  await page.getByRole("button", { name: "阅读设置" }).click();
-  await expect(page.getByLabel("正文字号")).toHaveValue("24");
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "short.epub", mimeType: "application/epub+zip", buffer: await sample("New font book") });
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("New font book");
-  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => getComputedStyle(el).fontSize)).toBe("24px");
-  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("Full", "QuotaExceededError"); }; });
-  await page.getByLabel("正文字号").selectOption("20");
-  await expect(page.getByText(/字号已应用，但无法保存/)).toBeVisible();
-  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => getComputedStyle(el).fontSize)).toBe("20px");
-});
-
-test("ignores corrupt font preferences", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("epub-font-size", "9999"));
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.getByRole("button", { name: "阅读设置" }).click();
-  await expect(page.getByLabel("正文字号")).toHaveValue("18");
-});
-
-test("themes the interface and book, preserves progress and restores preferences", async ({ page }) => {
-  const styledBook = await JSZip.loadAsync(await sample("Theme test", true));
-  const chapter = await styledBook.file("chapter.xhtml")!.async("string");
-  styledBook.file("chapter.xhtml", chapter.replace("</head>", '<style>p { color: black; background-color: white; }</style></head>'));
-  await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "theme.epub", mimeType: "application/epub+zip", buffer: await styledBook.generateAsync({ type: "nodebuffer" }) });
+  await page.getByLabel("行高", { exact: true }).selectOption("2");
+  await expect
+    .poll(() =>
+      page
+        .frameLocator("iframe")
+        .first()
+        .locator("p")
+        .first()
+        .evaluate((el) => ({
+          font: getComputedStyle(el).fontSize,
+          line: getComputedStyle(el).lineHeight,
+          family: getComputedStyle(el).fontFamily,
+        })),
+    )
+    .toEqual({
+      font: "24px",
+      line: "48px",
+      family: 'Arial, "Microsoft YaHei", sans-serif',
+    });
+  await expect
+    .poll(async () => (await cfi())?.split(":")[0])
+    .toBe(saved!.split(":")[0]);
+  await page.getByRole("button", { name: "背景", exact: true }).click();
+  await page.getByLabel("界面模式", { exact: true }).selectOption("light");
+  await page.getByRole("button", { name: "背景 纯白", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect
+    .poll(() =>
+      page
+        .frameLocator("iframe")
+        .first()
+        .locator("body")
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+    )
+    .toBe("rgb(255, 255, 255)");
+  await page.getByLabel("界面模式", { exact: true }).selectOption("dark");
+  await page.getByRole("button", { name: "排版", exact: true }).click();
+  await page.getByLabel("视图", { exact: true }).selectOption("double");
   await expect(page.getByRole("button", { name: "下一页" })).toBeEnabled();
-  const position = () => page.evaluate(() => Object.entries(localStorage).find(([k]) => k.startsWith("epub-position:"))?.[1]?.split(":")[0]);
+  await page.reload();
+  await expect(
+    page.getByRole("tab", { name: "Garden story", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "排版", exact: true }).click();
+  await expect(page.getByLabel("行高", { exact: true })).toHaveValue("2");
+  await expect(page.getByLabel("字体", { exact: true })).toHaveValue("sans");
+  await expect(page.getByLabel("视图", { exact: true })).toHaveValue("double");
+  await page.getByRole("button", { name: "目录", exact: true }).click();
+  await expect(page.getByRole("button", { name: "下一页" })).toBeEnabled();
+  await expect(
+    page.frameLocator("iframe").first().locator("p").first(),
+  ).toBeAttached();
+  await page.screenshot({ path: "test-results/reader.png" });
+  await page
+    .getByRole("button", { name: "关闭标签 Second story", exact: true })
+    .click();
+  await expect(
+    page.getByRole("tab", { name: "Second story", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "关闭阅读，返回书架", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "书架", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".book-card")).toHaveCount(2);
+  const coverBox = (await page.locator(".book-cover").first().boundingBox())!;
+  const barBox = (await page
+    .locator(".book-card > progress")
+    .first()
+    .boundingBox())!;
+  const captionBox = (await page
+    .locator(".book-caption")
+    .first()
+    .boundingBox())!;
+  expect(barBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height);
+  expect(barBox.y + barBox.height).toBeLessThan(captionBox.y);
+  await page.screenshot({ path: "test-results/shelf.png" });
+  await page.reload();
+  await expect(page.locator(".book-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "选择", exact: true }).click();
+  await page.getByRole("button", { name: "全选", exact: true }).click();
+  await page
+    .getByRole("button", { name: "删除所选（2）", exact: true })
+    .click();
+  await expect(page.locator(".book-card")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText("从一本书开始。")).toBeVisible();
+});
+
+test("duplicate and corrupt imports preserve library", async ({ page }) => {
+  await page.goto("/");
+  await upload(page, "Original");
+  // Reuse identical archive bytes to verify content deduplication.
+  const buffer = await sample("Duplicate");
+  const input = page.getByLabel("选择 EPUB 文件");
+  await input.setInputFiles({
+    name: "one.epub",
+    mimeType: "application/epub+zip",
+    buffer,
+  });
+  await expect(
+    page.getByRole("tab", { name: "Duplicate", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "导入 EPUB", exact: true }),
+  ).toBeEnabled();
+  await input.setInputFiles({
+    name: "renamed.epub",
+    mimeType: "application/epub+zip",
+    buffer,
+  });
+  await expect(
+    page.getByRole("button", { name: "导入 EPUB", exact: true }),
+  ).toBeEnabled();
+  await input.setInputFiles({
+    name: "broken.epub",
+    mimeType: "application/epub+zip",
+    buffer: Buffer.from("broken"),
+  });
+  await expect(page.locator(".workspace").getByRole("alert")).toContainText(
+    "无法导入",
+  );
+  await page.getByRole("button", { name: "书架", exact: true }).click();
+  await expect(page.locator(".book-card")).toHaveCount(2);
+});
+
+test("real Alice navigation and pagination", async ({ page }) => {
+  const file = path.resolve(
+    "Alice's Adventures in Wonderland by Lewis Carroll.epub",
+  );
+  test.skip(!existsSync(file), "Optional local book");
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "导入 EPUB", exact: true }),
+  ).toBeEnabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles(file);
+  const chapter = page.getByRole("button", {
+    name: "CHAPTER II. The Pool of Tears",
+    exact: true,
+  });
+  await expect(chapter).toBeEnabled();
+  await chapter.click();
+  await expect(chapter).toHaveAttribute("aria-current", "location");
+  await page.getByRole("button", { name: "下一页", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "上一页", exact: true }),
+  ).toBeEnabled();
+  await expect(page.locator(".page-controls")).toContainText(/\d+%/);
+  await page.reload();
+  await expect(chapter).toHaveAttribute("aria-current", "location");
+  await page.getByRole("button", { name: "关闭阅读，返回书架" }).click();
+  await expect(page.locator(".book-card img")).toBeVisible();
+});
+
+test("migrates the previous single-book record and handles failed deletion", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "导入 EPUB", exact: true }),
+  ).toBeEnabled();
+  const bytes = Array.from(await sample("Legacy book", true));
+  await page.evaluate(
+    (bytes) =>
+      new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open("local-epub-reader", 1);
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction("books", "readwrite");
+          tx.objectStore("books").put(
+            { name: "legacy.epub", data: new Uint8Array(bytes).buffer },
+            "current",
+          );
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+        req.onerror = () => reject(req.error);
+      }),
+    bytes,
+  );
+  await page.reload();
+  await expect(page.locator(".book-card")).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "阅读 Legacy book", exact: true })
+    .click();
+  await expect(page.getByRole("button", { name: "下一页" })).toBeEnabled();
+  await page.getByRole("button", { name: "书架", exact: true }).click();
+  await page.reload();
+  await expect(page.locator(".book-card")).toHaveCount(1);
+  await page.evaluate(() => {
+    IDBObjectStore.prototype.delete = () => {
+      throw new DOMException("Denied", "SecurityError");
+    };
+  });
+  await page.getByRole("button", { name: "选择", exact: true }).click();
+  await page.getByRole("button", { name: "全选", exact: true }).click();
+  await page
+    .getByRole("button", { name: "删除所选（1）", exact: true })
+    .click();
+  await expect(page.locator(".workspace").getByRole("alert")).toContainText(
+    "删除失败",
+  );
+  await expect(page.locator(".book-card")).toHaveCount(1);
+});
+
+test("narrow viewport remains paginated without document overflow", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await upload(page, "Mobile book");
+  await page.getByRole("button", { name: "排版", exact: true }).click();
+  await page.getByLabel("视图", { exact: true }).selectOption("single");
+  await page.getByRole("button", { name: "收起面板" }).click();
+  await expect(page.getByRole("button", { name: "下一页" })).toBeEnabled();
+  await page.getByRole("button", { name: "下一页" }).click();
+  await expect(page.getByRole("button", { name: "上一页" })).toBeEnabled();
+  expect(
+    await page.evaluate(() => ({
+      x: document.documentElement.scrollWidth <= innerWidth,
+      y: document.documentElement.scrollHeight <= innerHeight,
+    })),
+  ).toEqual({ x: true, y: true });
+});
+
+test("wheel flips inside EPUB iframe and background remains independent", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await upload(page, "Wheel book");
+  const key = await page.evaluate(() =>
+    Object.keys(localStorage).find((k) => k.startsWith("epub-position:"))!,
+  );
+  const position = () => page.evaluate((key) => localStorage.getItem(key), key);
   await expect.poll(position).toMatch(/^epubcfi/);
   const first = await position();
-  await page.locator(".epub-container").evaluate(el => { el.scrollTop = 2500; });
+  const bounds = (await page.locator(".epub-host").boundingBox())!;
+  await page.mouse.move(bounds.x + 100, bounds.y + 100);
+  await page.mouse.wheel(0, 120);
   await expect.poll(position).not.toBe(first);
-  const before = await position();
-  await page.getByRole("button", { name: "阅读设置" }).click();
-  await page.getByLabel("主题", { exact: true }).selectOption("dark");
-  const bodyColors = () => page.frameLocator("iframe").first().locator("body").evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, color: getComputedStyle(el).color }));
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect.poll(() => page.locator(".toolbar").evaluate(el => getComputedStyle(el).backgroundColor)).toBe("rgb(32, 40, 51)");
-  await expect.poll(bodyColors).toEqual({ bg: "rgb(32, 40, 51)", color: "rgb(226, 232, 240)" });
-  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => ({ color: getComputedStyle(el).color, bg: getComputedStyle(el).backgroundColor }))).toEqual({ color: "rgb(226, 232, 240)", bg: "rgba(0, 0, 0, 0)" });
-  await expect.poll(position).toBe(before);
+  await page.waitForTimeout(400); // Deliberately exceed wheel gesture cooldown.
+  await page.mouse.wheel(0, -120);
+  await expect.poll(position).toBe(first);
+  await page.getByRole("button", { name: "背景", exact: true }).click();
+  await page.getByRole("button", { name: "背景 米黄", exact: true }).click();
+  await page.getByRole("button", { name: "主题色 紫藤", exact: true }).click();
+  await page.getByLabel("界面模式", { exact: true }).selectOption("dark");
+  await expect
+    .poll(() =>
+      page
+        .frameLocator("iframe")
+        .first()
+        .locator("body")
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+    )
+    .toBe("rgb(243, 232, 207)");
   await page.reload();
-  await expect.poll(bodyColors).toEqual({ bg: "rgb(32, 40, 51)", color: "rgb(226, 232, 240)" });
-  await expect.poll(position).toBe(before);
-  await page.getByRole("button", { name: "阅读设置" }).click();
-  await expect(page.getByLabel("主题", { exact: true })).toHaveValue("dark");
-  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "new-theme.epub", mimeType: "application/epub+zip", buffer: await sample("New theme book") });
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("New theme book");
-  await expect.poll(bodyColors).toEqual({ bg: "rgb(32, 40, 51)", color: "rgb(226, 232, 240)" });
-  await page.getByLabel("主题", { exact: true }).selectOption("light");
-  await expect.poll(bodyColors).toEqual({ bg: "rgb(255, 255, 255)", color: "rgb(37, 51, 71)" });
-  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("Full", "QuotaExceededError"); }; });
-  await page.getByLabel("主题", { exact: true }).selectOption("dark");
-  await expect(page.getByText(/主题已应用，但无法保存/)).toBeVisible();
-  await expect.poll(bodyColors).toEqual({ bg: "rgb(32, 40, 51)", color: "rgb(226, 232, 240)" });
+  await expect
+    .poll(() =>
+      page
+        .frameLocator("iframe")
+        .first()
+        .locator("body")
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+    )
+    .toBe("rgb(243, 232, 207)");
+  expect(await page.evaluate(() => localStorage.getItem("epub-accent"))).toBe(
+    "#8867c1",
+  );
+  await page.getByRole("button", { name: "背景", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "背景 米黄", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
 });
 
-test("invalid saved theme falls back to light", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("epub-theme", "invalid"));
+test("repairs covers in previously migrated records without reimport", async ({
+  page,
+}) => {
+  const file = path.resolve(
+    "Alice's Adventures in Wonderland by Lewis Carroll.epub",
+  );
+  test.skip(!existsSync(file), "Optional local Alice");
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-  await page.getByRole("button", { name: "阅读设置" }).click();
-  await expect(page.getByLabel("主题", { exact: true })).toHaveValue("light");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(
+    page.getByRole("button", { name: "导入 EPUB", exact: true }),
+  ).toBeEnabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles(file);
+  await expect(page.getByRole("button", { name: "下一页" })).toBeEnabled();
+  await page.getByRole("button", { name: "书架", exact: true }).click();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open("local-epub-reader", 1);
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction("books", "readwrite");
+          const store = tx.objectStore("books");
+          const get = store.openCursor();
+          get.onsuccess = () => {
+            const c = get.result;
+            if (c) {
+              const book = c.value;
+              delete book.cover;
+              delete book.coverChecked;
+              c.update(book);
+              c.continue();
+            }
+          };
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+        req.onerror = () => reject(req.error);
+      }),
+  );
+  await page.reload();
+  await expect(page.locator(".book-card img")).toBeVisible();
+  await expect(page.locator(".book-caption")).toHaveCSS("height", "44px");
+  await page.screenshot({ path: "test-results/repaired-cover.png" });
 });

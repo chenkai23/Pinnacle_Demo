@@ -1,19 +1,65 @@
 # Local EPUB Reader
 
-A local-first EPUB reader built with Next.js App Router, TypeScript and React.
+A browser-local EPUB bookshelf and paginated reader using Next.js App Router,
+TypeScript, React and epub.js. No backend, external API or remote fonts.
 
 ## Run
 
-Use Node.js 20.9+ (Node.js 22 LTS recommended) and npm.
+Use Node.js 22 LTS and npm:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. For production, run `npm run build` then `npm start`.
+Open http://localhost:3000. Production: `npm run build` then `npm start`.
 
-## Validate
+## Read
+
+- Import one or multiple EPUBs. The bookshelf shows covers (or a title placeholder)
+  and reading progress. Identical file bytes are deduplicated.
+- Open books into tabs. Switch tabs to resume each book independently. Close a tab
+  without deleting the book; the upper-right close button returns to the bookshelf.
+- Use Select, optional Select all, and Delete selected to remove books locally.
+- The left rail opens chapter navigation, typography, or background preferences.
+- Typography includes single/double page, serif/sans-serif, 14–28 px size and line
+  height 1.4–2.2. Double-page layout needs sufficient horizontal space.
+- Read using Previous/Next or the mouse wheel (down: next, up: previous), with no content scrolling. Wheel gestures are throttled to avoid skipping pages. Footer numbers refer to the
+  current chapter's dynamically laid out pages; percentage refers to the whole
+  book's text locations, calculated locally after loading. Pagination changes
+  with viewport and typography; these are not fixed print page numbers.
+- Light/dark colors apply to the interface and book; images are not inverted.
+
+## Persistence and limitations
+
+IndexedDB stores books and covers under SHA-256 file identifiers. localStorage
+stores per-book EPUB CFI anchors, percentages, open tabs and display preferences.
+The previous single-book record is migrated into the bookshelf automatically.
+Refresh restores tabs, active book, settings and progress. Returning to the shelf
+persists that choice. Clearing browser site data deletes this local library.
+
+CFI restoration opens the page containing the target paragraph. The original anchor
+is retained during reflow until the next page turn or chapter jump to avoid drift.
+Progress is approximate by text locations, not physical page count. Changing
+layout briefly reloads the rendition. Book scripts are disabled in sandboxed
+iframes. DRM-protected EPUBs and PDF are unsupported. No accounts, cloud sync,
+search, annotations or AI features. Docker and a standalone self-authored sample
+remain pending.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    Shell[Rail / bookshelf / tabs] --> DB[IndexedDB books and covers]
+    Shell --> Reader[Browser-only epub.js paginated rendition]
+    Reader --> TOC[Nested chapter navigation]
+    Reader --> Progress[Per-file CFI and text progress]
+    Progress --> Local[localStorage]
+    Shell --> Settings[Typography / background / session]
+    Settings --> Local
+```
+
+## Verify
 
 ```sh
 npm test
@@ -22,79 +68,21 @@ npm run build
 npm run test:e2e
 ```
 
-## Architecture
+Browser tests use Microsoft Edge (`npx playwright install msedge` if needed).
+They generate EPUBs in memory and verify the shelf, tabs, independent progress,
+pagination, styles, refresh, deduplication, corruption, multi-delete, migration,
+delete failure and narrow viewports. The optional root-level
+`Alice's Adventures in Wonderland by Lewis Carroll.epub` adds real-book cover,
+chapter and page-turn checks. Root EPUB files are ignored and not publicly served.
 
-```mermaid
-flowchart TD
-    Page[Next.js App Router page] --> Shell[Client reader shell]
-    Shell --> Contents[Collapsible nested chapter navigation]
-    Shell --> Area[Reading area / empty state]
-    Area --> Epub[Browser-only epub.js renderer]
-    File[Local EPUB file] --> Validation[ZIP and container validation]
-    Validation --> Epub
-    Validation --> Storage[IndexedDB: current book]
-    Storage --> Shell
-    Epub --> Position[localStorage: CFI keyed by file SHA-256]
-    Position --> Epub
-```
+## Display refinements
 
-## Current scope and limitations
+Shelf captions occupy two lines with truncation; hovering reveals the full title.
+Older migrated records automatically re-extract missing cover metadata from their
+local EPUB once, preserving identifiers and progress. Books genuinely lacking a
+cover retain the title placeholder. Theme controls separate light/dark interface
+mode and five accent colors from the reading background (white, paper, green, blue, or night); all selections persist independently.
 
-Import one EPUB and read its contents by scrolling. Importing another book replaces
-the current book. Invalid archives show an error and keep the current book.
-Book scripts are disabled via the renderer's iframe sandbox. EPUB code only loads
-in the browser. DRM-protected EPUBs are unsupported.
-
-The current book is saved in IndexedDB and reopened after refresh in the same
-browser and origin. Replacement is committed to storage before switching the
-reader; a failed write leaves the previous book intact. Clearing site data deletes
-the book. Private browsing and storage quotas may limit persistence.
-
-Reading position is saved as an EPUB CFI in localStorage, keyed by the SHA-256
-hash of the file bytes. Refresh or reimporting the same file restores the position;
-different files do not share progress even if their names or metadata match.
-The renderer may round the restored location to a nearby line in the same paragraph.
-Invalid saved positions fall back to the beginning. Storage failures show a notice
-and do not prevent reading. Allow a moment after scrolling for position updates.
-
-The sidebar renders EPUB chapter navigation, including nested entries. Click a
-chapter or section to jump; the current entry follows reading position and is
-restored after refresh. Books without a TOC show a message. Invalid targets show
-a notice and leave reading available.
-
-Previous/next buttons move by one reading viewport in continuous scroll mode,
-including across chapter boundaries. They are disabled during loading/navigation
-and at the actual start/end of the book. Short books fitting one screen disable
-both buttons. Page turns update the existing CFI progress and chapter marker;
-these are screen steps, not fixed printed-page numbers.
-
-Reading settings offer six body font sizes (14, 16, 18, 20, 24 and 28 px), defaulting
-to 18 px. The preference is shared across books and saved in localStorage. Changing
-size briefly reopens the renderer at the current CFI using the new layout. Invalid
-stored values fall back to 18 px. A failed save shows a notice while still applying
-the chosen size for this session. Headings and non-text media retain book styling.
-
-Reading settings also offer light and dark themes. The preference is shared across
-books and stored in localStorage. Interface surfaces and EPUB text/background/link
-colors switch together; images are not inverted. The renderer reopens at the same
-CFI when changing theme. Invalid preferences default to light, and failed preference
-writes show a notice while applying the selected theme for the current session.
-
-A standalone sample EPUB and Docker
-support remain future increments.
-No backend, external API or remote font is used.
-
-Browser tests require Microsoft Edge (`npx playwright install msedge` if absent).
-They generate a small EPUB in memory to check rendering, replacement, invalid input,
-script sandboxing, refresh recovery, corrupt stored data and storage failures.
-They also check CFI recovery after a single scroll, per-file isolation, reimporting
-a renamed file, invalid CFI fallback and unavailable position storage.
-Chapter checks cover nested anchor jumps, current-entry highlighting, refresh,
-invalid targets and replacing the old book's TOC.
-Font tests inspect computed paragraph styles, position preservation, refresh,
-cross-book settings, corrupt preferences and failed preference writes.
-Theme tests inspect computed interface and EPUB colors, including author-specified
-paragraph colors, and verify progress, refresh, replacement and storage failures.
-An additional test uses the optional root-level file
-`Alice's Adventures in Wonderland by Lewis Carroll.epub` when present. Root EPUBs
-are ignored by Git and are never served as public assets.
+Shelf progress bars sit directly below each cover, before the fixed-height caption.
+The former follow-theme background migrates once to white or night; subsequent
+interface theme changes leave the chosen reading background unchanged.

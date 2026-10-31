@@ -1,5 +1,71 @@
 # AI workflow
 
+The user subsequently authorized combining the three UI revision rounds below into
+one local commit. Prior no-commit notes describe the instructions during development;
+no push is authorized. Final verification: 5 component tests, 7 browser tests,
+TypeScript and production build passed.
+
+## 2026-10-31 — Shelf progress placement and five-color palettes
+
+- Moved the progress element directly after the cover, above the book caption.
+- Reduced accents to five and reading backgrounds to five, removing follow-theme.
+  Legacy auto preferences resolve to a fixed white/night background and remain
+  independent of later interface mode changes.
+- Added component checks for option counts, removed option and legacy fallback;
+  browser assertions compare cover, progress-bar and caption bounding boxes.
+- Validation: 5 component tests, 7 browser tests, production build and TypeScript
+  checking passed. Screenshot confirmed the bar sits between cover and caption.
+- Duration: approximately 5 minutes (estimate, not a precise timer).
+- No commit or push, per the user's standing instruction.
+
+## 2026-10-31 — Wheel, caption, cover and color refinements
+
+- Interpreted user typos as wheel page-turn support and truncating shelf titles.
+- Added non-passive wheel listeners both on the host and within epub.js iframe
+  documents, with a threshold, gesture cooldown and first/last-page guards.
+- Standardized shelf captions to two lines/fixed height with full-title tooltips;
+  limited placeholder cover title length too.
+- Diagnosed missing Alice cover: legacy migration stored raw bytes/name but never
+  extracted cover metadata. Added one-time metadata/cover repair from the stored
+  EPUB, retaining the same SHA-256 identity and reading progress.
+- Added independent saved interface mode, six accents and six reading backgrounds.
+  Text/link colors follow the reading background for legibility.
+- Browser tests cover wheel in the iframe, independent color persistence, repaired
+  legacy Alice cover, caption height and existing library/reader flows. The repaired
+  Alice screenshot was inspected locally.
+- Duration: approximately 10 minutes (estimate, no precise start timer recorded).
+- Final verification: 4 component tests, 7 browser tests, production build and
+  TypeScript passed. The wheel test also passed using native mouse wheel events.
+- No commit or push, following the user's standing instruction for these revisions.
+
+## 2026-10-31 — Requested bookshelf and paginated UI revision
+
+- User explicitly expanded the original single-book/no-bookshelf scope, requested
+  the entire revision together, and instructed no commit or push until later.
+- Tools: OpenAI Codex desktop, terminal/apply_patch, frontend-design guidance,
+  Vitest and Playwright/Edge; local screenshots inspected for visual QA.
+- Used the supplied images as layout references. Built a dark function rail,
+  collapsible panels, tab strip, bookshelf covers/progress and multi-selection.
+- Migrated the old IndexedDB current book to SHA-256 keyed shelf records. Import
+  metadata/covers locally, deduplicate bytes, persist tabs and independent progress,
+  and delete books transactionally before updating the interface.
+- Switched epub.js from continuous scrolling to paginated default manager. Added
+  single/double view, local font families and line-height settings. Chapter page
+  counts come from rendition; whole-book percentages use generated text locations.
+- Kept script sandboxing. Added ResizeObserver handling and asynchronous disposal
+  after epub.js navigation/location jobs finish. Tests caught premature disposal,
+  transient layout resizing and incorrect test selection of another book's key.
+- Preserve the original CFI anchor through repagination until intentional navigation,
+  preventing progress drift during repeated typography changes.
+- Updated tests to cover the new shelf/pagination workflows replacing old single-book
+  scrolling expectations. Added legacy migration, delete failure and mobile checks.
+- Duration: approximately 25 minutes (estimate; no exact start timer recorded).
+- Final verification: 4 component tests and 5 Edge end-to-end tests passed, including
+  real Alice, migration, deletion failure and mobile. Production build passed.
+  Corrected unsupported Testing Library `exact` option in unit tests before the
+  final standalone TypeScript check. Reader/shelf screenshots inspected locally.
+
+
 ## 2026-10-31 — Increment 8: light/dark reading themes
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
