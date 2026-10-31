@@ -10,6 +10,8 @@
 - Added Docker configuration coverage and a repeatable Linux smoke script that
   checks readiness, runtime user, HTTP response and referenced static assets.
 - Validation and duration: in progress; Linux results will be recorded after execution.
+- Initial Linux execution exposed Windows CRLF in the archived shell script.
+  Added explicit LF Git attributes and a regression check before retrying.
 
 ## 2026-10-31 — Acceptance with two user-supplied EPUBs
 

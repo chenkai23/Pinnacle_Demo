@@ -14,4 +14,5 @@ it("packages the standalone server and static assets without local book data", (
     expect(readFileSync(".dockerignore", "utf8").split(/\r?\n/)).toContain(entry);
   }
   expect(readFileSync("compose.yaml", "utf8")).toContain("127.0.0.1:${READER_PORT:-3000}:3000");
+  expect(readFileSync(".gitattributes", "utf8")).toContain("*.sh text eol=lf");
 });
