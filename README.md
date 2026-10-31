@@ -43,8 +43,7 @@ is retained during reflow until the next page turn or chapter jump to avoid drif
 Progress is approximate by text locations, not physical page count. Changing
 layout briefly reloads the rendition. Book scripts are disabled in sandboxed
 iframes. DRM-protected EPUBs and PDF are unsupported. No accounts, cloud sync,
-search, annotations or AI features. Docker and a standalone self-authored sample
-remain pending.
+search, annotations or AI features. Docker remains pending; the user waived the standalone sample EPUB.
 
 ## Architecture
 
@@ -86,3 +85,8 @@ mode and five accent colors from the reading background (white, paper, green, bl
 Shelf progress bars sit directly below each cover, before the fixed-height caption.
 The former follow-theme background migrates once to white or night; subsequent
 interface theme changes leave the chosen reading background unchanged.
+
+## Acceptance
+
+See [ACCEPTANCE.md](ACCEPTANCE.md) for the two-real-book acceptance results and
+verification limits. A self-authored sample EPUB is waived; Docker is deferred.

@@ -1,5 +1,22 @@
 # AI workflow
 
+## 2026-10-31 — Acceptance with two user-supplied EPUBs
+
+- User waived the sample EPUB and deferred Docker. No product behavior changed.
+- Existing browser inspection via computer-use was stopped by the tool because it
+  could not confidently determine the Windows browser URL. No further native UI
+  actions were taken; existing user browser data was not accessed or altered.
+- Added a repeatable, isolated two-real-book Playwright acceptance using local
+  Alice and Wizard of Oz files, covering imports/covers, chapter jumps, wheel,
+  independent CFI, typography, palette, refresh and return to shelf.
+- Existing isolated regression tests cover temporary fixture deletion/corruption,
+  legacy repair and narrow viewports; no standalone sample artifact was created.
+- Results: 5 component tests, all 8 browser tests, production build and TypeScript
+  passed. Real-book test also reran with progress-generation wait before screenshots.
+  Reader/shelf screenshots inspected locally; limitations recorded in ACCEPTANCE.md.
+- Duration: approximately 8 minutes (estimate, no precise timer).
+- Local commit follows AGENTS.md; no push.
+
 The user subsequently authorized combining the three UI revision rounds below into
 one local commit. Prior no-commit notes describe the instructions during development;
 no push is authorized. Final verification: 5 component tests, 7 browser tests,
