@@ -1,5 +1,23 @@
 # AI workflow
 
+## 2026-10-31 — Increment 7: font size preference
+
+- Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
+- Read AGENTS.md and existing reader, progress and test code before implementation.
+- Added a collapsible reading settings panel with six body font sizes from 14 to
+  28 px (default 18). Load/save a validated localStorage preference, shared across
+  books. Storage errors show a notice; changes still apply for the current session.
+- Apply epub.js body and paragraph styles before display. A size change rebuilds
+  the rendition at the current CFI, with a memory copy of progress for unavailable
+  localStorage. Existing chapter navigation and page controls remain in place.
+- Added component coverage for panel controls and saved selection. Browser tests
+  inspect actual paragraph styles, same-paragraph recovery, refresh, replacement,
+  corrupt saved values and failed settings writes.
+- Time: approximately 5 minutes (estimate; no exact start timer recorded).
+- Final validation: 6 component tests and 8 Edge browser tests passed, including
+  the existing Alice regression; production build and TypeScript checking passed.
+  No dependencies were added.
+
 ## 2026-10-31 — Increment 6: previous/next screen controls
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.

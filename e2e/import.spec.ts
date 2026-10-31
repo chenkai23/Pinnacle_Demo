@@ -211,3 +211,38 @@ test("turns one screen, restores progress, and stops at book boundaries", async 
   await expect(previous).toBeDisabled();
   await expect(next).toBeDisabled();
 });
+
+test("applies font size, preserves the paragraph and restores settings", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "font.epub", mimeType: "application/epub+zip", buffer: await sample("Font test", true) });
+  await expect(page.getByRole("button", { name: "下一页" })).toBeEnabled();
+  const paragraph = () => page.evaluate(() => Object.entries(localStorage).find(([k]) => k.startsWith("epub-position:"))?.[1]?.split(":")[0]);
+  await page.locator(".epub-container").evaluate(el => { el.scrollTop = 2500; });
+  await expect.poll(paragraph).not.toBe("epubcfi(/6/2!/4/2/1");
+  const before = await paragraph();
+  await page.getByRole("button", { name: "阅读设置" }).click();
+  await page.getByLabel("正文字号").selectOption("24");
+  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => getComputedStyle(el).fontSize)).toBe("24px");
+  await expect.poll(paragraph).toBe(before);
+  await page.reload();
+  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => getComputedStyle(el).fontSize)).toBe("24px");
+  await expect.poll(paragraph).toBe(before);
+  await page.getByRole("button", { name: "阅读设置" }).click();
+  await expect(page.getByLabel("正文字号")).toHaveValue("24");
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "short.epub", mimeType: "application/epub+zip", buffer: await sample("New font book") });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("New font book");
+  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => getComputedStyle(el).fontSize)).toBe("24px");
+  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("Full", "QuotaExceededError"); }; });
+  await page.getByLabel("正文字号").selectOption("20");
+  await expect(page.getByText(/字号已应用，但无法保存/)).toBeVisible();
+  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => getComputedStyle(el).fontSize)).toBe("20px");
+});
+
+test("ignores corrupt font preferences", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("epub-font-size", "9999"));
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  await page.getByRole("button", { name: "阅读设置" }).click();
+  await expect(page.getByLabel("正文字号")).toHaveValue("18");
+});

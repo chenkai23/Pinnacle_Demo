@@ -11,6 +11,10 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .app-name { color: var(--muted); font-size: 12px; }
 h1 { font-size: 17px; font-weight: 600; margin: 5px 0 0; }
 .toolbar-actions { display: flex; gap: 12px; }
+.reading-settings { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 28px; background: #fff; border-bottom: 1px solid var(--line); }
+.reading-settings select { font: inherit; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; }
+.reading-settings select:focus-visible { outline: 3px solid #648fc0; outline-offset: 3px; }
+.settings-notice { margin: 0; padding: 12px 28px; }
 .primary-button { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
 .reader-body { flex: 1; display: flex; }
 .contents { flex: 0 0 240px; padding: 32px 24px; border-right: 1px solid var(--line); }

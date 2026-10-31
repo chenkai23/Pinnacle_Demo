@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { validateEpub } from "../lib/epub-file";
 import { loadBook, saveBook } from "../lib/book-storage";
+import { DEFAULT_FONT_SIZE, FONT_SIZES, loadFontSize, saveFontSize } from "../lib/reader-settings";
 
 const EpubView = dynamic(() => import("./epub-view"), { ssr: false, loading: () => <p role="status">正在加载阅读器…</p> });
 
@@ -16,9 +17,14 @@ export default function ReaderShell() {
   const [restoring, setRestoring] = useState(true);
   const input = useRef<HTMLInputElement>(null);
   const [contentsTarget, setContentsTarget] = useState<HTMLDivElement | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
+  const [settingsNotice, setSettingsNotice] = useState("");
 
   useEffect(() => {
     let active = true;
+    try { setFontSize(loadFontSize()); }
+    catch { setSettingsNotice("无法读取字号设置，已使用默认字号。"); }
     async function restore() {
       try {
         const saved = await loadBook();
@@ -59,11 +65,21 @@ export default function ReaderShell() {
         <button className="quiet-button" aria-expanded={contentsOpen} aria-controls="contents" onClick={() => setContentsOpen(!contentsOpen)}>目录</button>
         <div className="book-heading"><span className="app-name">本地阅读</span><h1>{title}</h1></div>
         <div className="toolbar-actions">
-          <button className="quiet-button" disabled>阅读设置</button>
+          <button className="quiet-button" aria-expanded={settingsOpen} aria-controls="reading-settings" disabled={restoring} onClick={() => setSettingsOpen(!settingsOpen)}>阅读设置</button>
           <input ref={input} type="file" accept=".epub,application/epub+zip" aria-label="选择 EPUB 文件" hidden disabled={loading || restoring} onChange={event => { void importFile(event.target.files?.[0]); event.target.value = ""; }} />
           <button className="primary-button" disabled={loading || restoring} onClick={() => input.current?.click()}>{restoring ? "正在恢复…" : loading ? "正在导入…" : "导入 EPUB"}</button>
         </div>
       </header>
+      {settingsOpen && <section id="reading-settings" className="reading-settings" aria-label="阅读设置">
+        <label htmlFor="font-size">正文字号</label>
+        <select id="font-size" value={fontSize} onChange={event => {
+          const size = Number(event.target.value);
+          setFontSize(size);
+          try { saveFontSize(size); setSettingsNotice(""); }
+          catch { setSettingsNotice("字号已应用，但无法保存，刷新后可能恢复默认值。请检查浏览器存储权限或空间。"); }
+        }}>{FONT_SIZES.map(size => <option key={size} value={size}>{size} px</option>)}</select>
+      </section>}
+      {settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}
       <div className="reader-body">
         <aside id="contents" className="contents" hidden={!contentsOpen} aria-label="书籍目录">
           <h2>目录</h2>
@@ -74,7 +90,7 @@ export default function ReaderShell() {
           {error && <p className="import-error" role="alert">{error}</p>}
           {restoring && <p role="status">正在恢复本地书籍…</p>}
           {loading && <p role="status">正在检查并保存 EPUB 文件…</p>}
-          {data ? <EpubView data={data} onTitle={setTitle} contentsTarget={contentsTarget} /> :
+          {data ? <EpubView data={data} onTitle={setTitle} contentsTarget={contentsTarget} fontSize={fontSize} /> :
           <section className="empty-state" aria-labelledby="welcome-title">
             <svg className="book-icon" viewBox="0 0 80 64" fill="none" aria-hidden="true"><path d="M40 54C28 46 16 46 6 48V8c12-2 24 0 34 8 10-8 22-10 34-8v40c-10-2-22-2-34 6Zm0 0V16" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
             <h2 id="welcome-title">留一段时间，读一本书。</h2>

@@ -9,8 +9,9 @@ import { createPortal } from "react-dom";
 import type { NavItem } from "epubjs";
 import ChapterNavigation from "./chapter-navigation";
 
-export default function EpubView({ data, onTitle, contentsTarget }: { data: ArrayBuffer; onTitle: (title: string) => void; contentsTarget: HTMLElement | null }) {
+export default function EpubView({ data, onTitle, contentsTarget, fontSize }: { data: ArrayBuffer; onTitle: (title: string) => void; contentsTarget: HTMLElement | null; fontSize: number }) {
   const host = useRef<HTMLDivElement>(null);
+  const memoryPosition = useRef<{ data: ArrayBuffer; cfi: string } | null>(null);
   const [status, setStatus] = useState("正在打开书籍…");
   const [error, setError] = useState(false);
   const [notice, setNotice] = useState("");
@@ -73,7 +74,7 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
         let saved: string | null = null;
         try {
           id = await bookId(data);
-          saved = loadPosition(id);
+          saved = memoryPosition.current?.data === data ? memoryPosition.current.cfi : loadPosition(id);
           if (saved && !book.spine.get(saved)) throw new Error("Unknown saved chapter");
         } catch {
           saved = null;
@@ -84,9 +85,15 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
           width: "100%", height: "100%", flow: "scrolled-doc",
           manager: "continuous", allowScriptedContent: false,
         }) as Rendition & { reportLocation(): void };
+        // Apply before display so restoring CFI uses the new text layout.
+        rendition.themes.default({
+          body: { "font-size": `${fontSize}px !important` },
+          "p, li, blockquote, dd, dt": { "font-size": "1em !important" },
+        });
         rendition.on("relocated", (location: Location) => {
           if (!active) return;
           latestCfi = location.start.cfi;
+          memoryPosition.current = { data, cfi: latestCfi };
           // epub.js rounds page counts in scrolled mode, which can report atEnd
           // before the scroller reaches the bottom. Use actual scroll bounds.
           const viewport = element?.querySelector(".epub-container");
@@ -149,7 +156,7 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
     }
     void open();
     return () => { persist(); active = false; element?.removeEventListener("scroll", onScroll, true); clearTimeout(scrollTimer); window.removeEventListener("pagehide", persist); clearTimeout(timer); book?.destroy(); };
-  }, [data, onTitle]);
+  }, [data, onTitle, fontSize]);
 
   return <section className="epub-reader" aria-label="书籍正文">
     {contentsTarget && createPortal(<ChapterNavigation items={toc} current={current} busy={busy} onSelect={href => { void navigate.current(href); }} />, contentsTarget)}

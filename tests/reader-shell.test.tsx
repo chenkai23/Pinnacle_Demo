@@ -1,16 +1,29 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import ReaderShell from "../components/reader-shell";
 
 vi.mock("../lib/book-storage", () => ({ loadBook: vi.fn().mockResolvedValue(null), saveBook: vi.fn().mockResolvedValue(undefined) }));
 
 describe("reader shell", () => {
+  beforeEach(() => localStorage.clear());
   it("explains the empty state and disables unavailable actions", async () => {
     render(<ReaderShell />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("尚未打开书籍");
     expect(screen.getByRole("main")).toHaveTextContent("从顶部导入一本 EPUB");
     expect(await screen.findByRole("button", { name: "导入 EPUB" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "阅读设置" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "阅读设置" })).toBeEnabled();
+  });
+
+  it("changes and saves the font size through the settings panel", async () => {
+    localStorage.setItem("epub-font-size", "24");
+    render(<ReaderShell />);
+    await screen.findByRole("button", { name: "导入 EPUB" });
+    fireEvent.click(screen.getByRole("button", { name: "阅读设置" }));
+    expect(screen.getByLabelText("正文字号")).toHaveValue("24");
+    fireEvent.change(screen.getByLabelText("正文字号"), { target: { value: "20" } });
+    expect(localStorage.getItem("epub-font-size")).toBe("20");
+    fireEvent.click(screen.getByRole("button", { name: "阅读设置" }));
+    expect(screen.queryByLabelText("正文字号")).not.toBeInTheDocument();
   });
 
   it("rejects unsupported and corrupt files without replacing the empty state", async () => {

@@ -68,7 +68,13 @@ and at the actual start/end of the book. Short books fitting one screen disable
 both buttons. Page turns update the existing CFI progress and chapter marker;
 these are screen steps, not fixed printed-page numbers.
 
-Settings, a standalone sample EPUB and Docker
+Reading settings offer six body font sizes (14, 16, 18, 20, 24 and 28 px), defaulting
+to 18 px. The preference is shared across books and saved in localStorage. Changing
+size briefly reopens the renderer at the current CFI using the new layout. Invalid
+stored values fall back to 18 px. A failed save shows a notice while still applying
+the chosen size for this session. Headings and non-text media retain book styling.
+
+Dark theme, a standalone sample EPUB and Docker
 support remain future increments.
 No backend, external API or remote font is used.
 
@@ -79,6 +85,8 @@ They also check CFI recovery after a single scroll, per-file isolation, reimport
 a renamed file, invalid CFI fallback and unavailable position storage.
 Chapter checks cover nested anchor jumps, current-entry highlighting, refresh,
 invalid targets and replacing the old book's TOC.
+Font tests inspect computed paragraph styles, position preservation, refresh,
+cross-book settings, corrupt preferences and failed preference writes.
 An additional test uses the optional root-level file
 `Alice's Adventures in Wonderland by Lewis Carroll.epub` when present. Root EPUBs
 are ignored by Git and are never served as public assets.
