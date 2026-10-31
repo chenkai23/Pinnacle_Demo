@@ -15,28 +15,78 @@ async function sample(title: string) {
 
 test("imports, renders safely, keeps book on invalid input, and replaces book", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
   const input = page.getByLabel("选择 EPUB 文件");
   await input.setInputFiles({ name: "sample.epub", mimeType: "application/epub+zip", buffer: await sample("Garden story") });
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Garden story");
   const frame = page.frameLocator("iframe").first();
   await expect(frame.getByText("A quiet afternoon in the garden.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Garden story");
+  await expect(page.frameLocator("iframe").first().getByText("A quiet afternoon in the garden.")).toBeVisible();
   await expect(page.locator("iframe").first()).not.toHaveAttribute("sandbox", /allow-scripts/);
   expect(await page.locator("body").getAttribute("data-book-script")).toBeNull();
   await input.setInputFiles({ name: "broken.epub", mimeType: "application/epub+zip", buffer: Buffer.from("broken") });
   await expect(page.getByRole("main").getByRole("alert")).toContainText("文件损坏");
   await expect(frame.getByText("A quiet afternoon in the garden.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Garden story");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
   await input.setInputFiles({ name: "replacement.epub", mimeType: "application/epub+zip", buffer: await sample("Another story") });
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Another story");
   await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Another story");
+  await page.reload();
+  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Another story");
+
+  // A failed write must not replace the durable book or current reader.
+  await page.evaluate(() => { IDBObjectStore.prototype.put = () => { throw new DOMException("Full", "QuotaExceededError"); }; });
+  await input.setInputFiles({ name: "unsaved.epub", mimeType: "application/epub+zip", buffer: await sample("Unsaved story") });
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("无法保存书籍");
+  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Another story");
+  await page.reload();
+  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Another story");
+});
+
+test("recovers from corrupt stored data and reports unavailable storage", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open("local-epub-reader", 1);
+    request.onsuccess = () => {
+      const db = request.result;
+      const tx = db.transaction("books", "readwrite");
+      tx.objectStore("books").put({ name: "corrupt.epub", data: new ArrayBuffer(4) }, "current");
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onabort = () => reject(tx.error);
+    };
+    request.onerror = () => reject(request.error);
+  }));
+  await page.reload();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("无法恢复本地书籍");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "recovered.epub", mimeType: "application/epub+zip", buffer: await sample("Recovered story") });
+  await page.reload();
+  await expect(page.frameLocator("iframe").first().getByRole("heading")).toHaveText("Recovered story");
+
+  await page.addInitScript(() => {
+    IDBFactory.prototype.open = () => { throw new DOMException("Blocked", "SecurityError"); };
+  });
+  await page.reload();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("无法恢复本地书籍");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
 });
 
 test("renders the locally supplied Alice EPUB", async ({ page }) => {
   const file = path.resolve("Alice's Adventures in Wonderland by Lewis Carroll.epub");
   test.skip(!existsSync(file), "Optional local book is not tracked in Git");
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
   await page.getByLabel("选择 EPUB 文件").setInputFiles(file);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/Alice/i);
   await expect(page.locator("iframe").first()).toBeVisible();
   await expect.poll(async () => (await Promise.all(page.frames().slice(1).map(f => f.locator("body").textContent().catch(() => "")))).join(" ")).toMatch(/Alice|Wonderland/i);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(/Alice/i);
+  await expect(page.locator("iframe").first()).toBeVisible();
 });

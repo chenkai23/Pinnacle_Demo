@@ -1,5 +1,21 @@
 # AI workflow
 
+## 2026-10-31 — Increment 3: local book persistence
+
+- Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
+- Read AGENTS.md and inspected current code before implementation.
+- Added IndexedDB storage with a single current-book key. Writes are accepted
+  only when the transaction completes, before switching the active reader.
+- On startup, load and validate stored EPUB bytes; show recovery/loading and
+  actionable errors. Storage failure leaves the previous book intact.
+- Browser checks cover refresh, replacement followed by refresh, corrupt import,
+  corrupt stored bytes, unavailable storage and quota/write failure. The user's
+  local Alice file is also imported and restored; it remains untracked.
+- Reading-position and settings persistence are deferred to later increments.
+- Validation: 3 component tests and 3 Edge browser tests passed; production build
+  and TypeScript checking passed. No external service or new dependency was added.
+- Time: approximately 5 minutes (estimate; no exact timer recorded).
+
 ## 2026-10-31 — Increment 2: EPUB import and rendering
 
 - Tool: OpenAI Codex desktop; terminal, apply_patch, Vitest and Playwright/Edge.
