@@ -26,6 +26,18 @@ describe("reader shell", () => {
     expect(screen.queryByLabelText("正文字号")).not.toBeInTheDocument();
   });
 
+  it("restores, switches and saves the reading theme", async () => {
+    localStorage.setItem("epub-theme", "dark");
+    render(<ReaderShell />);
+    await screen.findByRole("button", { name: "导入 EPUB" });
+    fireEvent.click(screen.getByRole("button", { name: "阅读设置" }));
+    expect(screen.getByLabelText("主题")).toHaveValue("dark");
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    fireEvent.change(screen.getByLabelText("主题"), { target: { value: "light" } });
+    expect(localStorage.getItem("epub-theme")).toBe("light");
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+  });
+
   it("rejects unsupported and corrupt files without replacing the empty state", async () => {
     render(<ReaderShell />);
     await screen.findByRole("button", { name: "导入 EPUB" });

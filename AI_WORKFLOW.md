@@ -1,5 +1,22 @@
 # AI workflow
 
+## 2026-10-31 — Increment 8: light/dark reading themes
+
+- Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
+- Read AGENTS.md, existing settings code, reader and stylesheet before implementation.
+- Added a light/dark selector in reading settings with validated localStorage load
+  and fallback to light. Failed saves apply the choice and display a notice.
+- Converted interface surfaces, text, borders, hover and error colors to theme
+  variables. EPUB themes override text/background/link colors without inverting
+  images. Use the existing CFI/memory-position mechanism when reopening the renderer.
+- Tests check UI and actual EPUB computed styles (including author-styled paragraphs),
+  saved selection, same-paragraph preservation, refresh, replacement, corrupt theme
+  values and failed preference writes. Existing Alice regression remains included.
+- Time: approximately 5 minutes (estimate; no exact start timer recorded).
+- Final validation: 7 component tests and all 10 Edge browser tests passed. The
+  strengthened author-color theme checks also passed separately; production build
+  and TypeScript checking passed. No dependencies were added.
+
 ## 2026-10-31 — Increment 7: font size preference
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.

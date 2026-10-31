@@ -74,7 +74,13 @@ size briefly reopens the renderer at the current CFI using the new layout. Inval
 stored values fall back to 18 px. A failed save shows a notice while still applying
 the chosen size for this session. Headings and non-text media retain book styling.
 
-Dark theme, a standalone sample EPUB and Docker
+Reading settings also offer light and dark themes. The preference is shared across
+books and stored in localStorage. Interface surfaces and EPUB text/background/link
+colors switch together; images are not inverted. The renderer reopens at the same
+CFI when changing theme. Invalid preferences default to light, and failed preference
+writes show a notice while applying the selected theme for the current session.
+
+A standalone sample EPUB and Docker
 support remain future increments.
 No backend, external API or remote font is used.
 
@@ -87,6 +93,8 @@ Chapter checks cover nested anchor jumps, current-entry highlighting, refresh,
 invalid targets and replacing the old book's TOC.
 Font tests inspect computed paragraph styles, position preservation, refresh,
 cross-book settings, corrupt preferences and failed preference writes.
+Theme tests inspect computed interface and EPUB colors, including author-specified
+paragraph colors, and verify progress, refresh, replacement and storage failures.
 An additional test uses the optional root-level file
 `Alice's Adventures in Wonderland by Lewis Carroll.epub` when present. Root EPUBs
 are ignored by Git and are never served as public assets.

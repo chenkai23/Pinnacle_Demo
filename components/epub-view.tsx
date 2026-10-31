@@ -8,8 +8,9 @@ import { bookId, loadPosition, savePosition } from "../lib/reading-position";
 import { createPortal } from "react-dom";
 import type { NavItem } from "epubjs";
 import ChapterNavigation from "./chapter-navigation";
+import { BOOK_COLORS, type Theme } from "../lib/reader-settings";
 
-export default function EpubView({ data, onTitle, contentsTarget, fontSize }: { data: ArrayBuffer; onTitle: (title: string) => void; contentsTarget: HTMLElement | null; fontSize: number }) {
+export default function EpubView({ data, onTitle, contentsTarget, fontSize, theme }: { data: ArrayBuffer; onTitle: (title: string) => void; contentsTarget: HTMLElement | null; fontSize: number; theme: Theme }) {
   const host = useRef<HTMLDivElement>(null);
   const memoryPosition = useRef<{ data: ArrayBuffer; cfi: string } | null>(null);
   const [status, setStatus] = useState("正在打开书籍…");
@@ -86,7 +87,11 @@ export default function EpubView({ data, onTitle, contentsTarget, fontSize }: { 
           manager: "continuous", allowScriptedContent: false,
         }) as Rendition & { reportLocation(): void };
         // Apply before display so restoring CFI uses the new text layout.
+        const colors = BOOK_COLORS[theme];
         rendition.themes.default({
+          "html, body": { "background-color": `${colors.background} !important`, color: `${colors.text} !important`, "color-scheme": theme },
+          "*": { color: `${colors.text} !important`, "background-color": "transparent !important", "border-color": `${colors.text} !important` },
+          "a, a *": { color: `${colors.link} !important` },
           body: { "font-size": `${fontSize}px !important` },
           "p, li, blockquote, dd, dt": { "font-size": "1em !important" },
         });
@@ -156,7 +161,7 @@ export default function EpubView({ data, onTitle, contentsTarget, fontSize }: { 
     }
     void open();
     return () => { persist(); active = false; element?.removeEventListener("scroll", onScroll, true); clearTimeout(scrollTimer); window.removeEventListener("pagehide", persist); clearTimeout(timer); book?.destroy(); };
-  }, [data, onTitle, fontSize]);
+  }, [data, onTitle, fontSize, theme]);
 
   return <section className="epub-reader" aria-label="书籍正文">
     {contentsTarget && createPortal(<ChapterNavigation items={toc} current={current} busy={busy} onSelect={href => { void navigate.current(href); }} />, contentsTarget)}

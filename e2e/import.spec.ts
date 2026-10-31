@@ -246,3 +246,50 @@ test("ignores corrupt font preferences", async ({ page }) => {
   await page.getByRole("button", { name: "阅读设置" }).click();
   await expect(page.getByLabel("正文字号")).toHaveValue("18");
 });
+
+test("themes the interface and book, preserves progress and restores preferences", async ({ page }) => {
+  const styledBook = await JSZip.loadAsync(await sample("Theme test", true));
+  const chapter = await styledBook.file("chapter.xhtml")!.async("string");
+  styledBook.file("chapter.xhtml", chapter.replace("</head>", '<style>p { color: black; background-color: white; }</style></head>'));
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "theme.epub", mimeType: "application/epub+zip", buffer: await styledBook.generateAsync({ type: "nodebuffer" }) });
+  await expect(page.getByRole("button", { name: "下一页" })).toBeEnabled();
+  const position = () => page.evaluate(() => Object.entries(localStorage).find(([k]) => k.startsWith("epub-position:"))?.[1]?.split(":")[0]);
+  await expect.poll(position).toMatch(/^epubcfi/);
+  const first = await position();
+  await page.locator(".epub-container").evaluate(el => { el.scrollTop = 2500; });
+  await expect.poll(position).not.toBe(first);
+  const before = await position();
+  await page.getByRole("button", { name: "阅读设置" }).click();
+  await page.getByLabel("主题", { exact: true }).selectOption("dark");
+  const bodyColors = () => page.frameLocator("iframe").first().locator("body").evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, color: getComputedStyle(el).color }));
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect.poll(() => page.locator(".toolbar").evaluate(el => getComputedStyle(el).backgroundColor)).toBe("rgb(32, 40, 51)");
+  await expect.poll(bodyColors).toEqual({ bg: "rgb(32, 40, 51)", color: "rgb(226, 232, 240)" });
+  await expect.poll(() => page.frameLocator("iframe").first().locator("p").first().evaluate(el => ({ color: getComputedStyle(el).color, bg: getComputedStyle(el).backgroundColor }))).toEqual({ color: "rgb(226, 232, 240)", bg: "rgba(0, 0, 0, 0)" });
+  await expect.poll(position).toBe(before);
+  await page.reload();
+  await expect.poll(bodyColors).toEqual({ bg: "rgb(32, 40, 51)", color: "rgb(226, 232, 240)" });
+  await expect.poll(position).toBe(before);
+  await page.getByRole("button", { name: "阅读设置" }).click();
+  await expect(page.getByLabel("主题", { exact: true })).toHaveValue("dark");
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "new-theme.epub", mimeType: "application/epub+zip", buffer: await sample("New theme book") });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("New theme book");
+  await expect.poll(bodyColors).toEqual({ bg: "rgb(32, 40, 51)", color: "rgb(226, 232, 240)" });
+  await page.getByLabel("主题", { exact: true }).selectOption("light");
+  await expect.poll(bodyColors).toEqual({ bg: "rgb(255, 255, 255)", color: "rgb(37, 51, 71)" });
+  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException("Full", "QuotaExceededError"); }; });
+  await page.getByLabel("主题", { exact: true }).selectOption("dark");
+  await expect(page.getByText(/主题已应用，但无法保存/)).toBeVisible();
+  await expect.poll(bodyColors).toEqual({ bg: "rgb(32, 40, 51)", color: "rgb(226, 232, 240)" });
+});
+
+test("invalid saved theme falls back to light", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("epub-theme", "invalid"));
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  await page.getByRole("button", { name: "阅读设置" }).click();
+  await expect(page.getByLabel("主题", { exact: true })).toHaveValue("light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});

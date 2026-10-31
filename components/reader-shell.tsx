@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { validateEpub } from "../lib/epub-file";
 import { loadBook, saveBook } from "../lib/book-storage";
 import { DEFAULT_FONT_SIZE, FONT_SIZES, loadFontSize, saveFontSize } from "../lib/reader-settings";
+import { loadTheme, saveTheme, type Theme } from "../lib/reader-settings";
 
 const EpubView = dynamic(() => import("./epub-view"), { ssr: false, loading: () => <p role="status">正在加载阅读器…</p> });
 
@@ -20,11 +21,16 @@ export default function ReaderShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   const [settingsNotice, setSettingsNotice] = useState("");
+  const [theme, setTheme] = useState<Theme>("light");
+
+  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
 
   useEffect(() => {
     let active = true;
     try { setFontSize(loadFontSize()); }
     catch { setSettingsNotice("无法读取字号设置，已使用默认字号。"); }
+    try { setTheme(loadTheme()); }
+    catch { setSettingsNotice("无法读取阅读设置，已使用默认设置。"); }
     async function restore() {
       try {
         const saved = await loadBook();
@@ -78,6 +84,13 @@ export default function ReaderShell() {
           try { saveFontSize(size); setSettingsNotice(""); }
           catch { setSettingsNotice("字号已应用，但无法保存，刷新后可能恢复默认值。请检查浏览器存储权限或空间。"); }
         }}>{FONT_SIZES.map(size => <option key={size} value={size}>{size} px</option>)}</select>
+        <label htmlFor="reading-theme">主题</label>
+        <select id="reading-theme" value={theme} onChange={event => {
+          const value = event.target.value as Theme;
+          setTheme(value);
+          try { saveTheme(value); setSettingsNotice(""); }
+          catch { setSettingsNotice("主题已应用，但无法保存，刷新后可能恢复默认值。请检查浏览器存储权限或空间。"); }
+        }}><option value="light">浅色</option><option value="dark">深色</option></select>
       </section>}
       {settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}
       <div className="reader-body">
@@ -90,7 +103,7 @@ export default function ReaderShell() {
           {error && <p className="import-error" role="alert">{error}</p>}
           {restoring && <p role="status">正在恢复本地书籍…</p>}
           {loading && <p role="status">正在检查并保存 EPUB 文件…</p>}
-          {data ? <EpubView data={data} onTitle={setTitle} contentsTarget={contentsTarget} fontSize={fontSize} /> :
+          {data ? <EpubView data={data} onTitle={setTitle} contentsTarget={contentsTarget} fontSize={fontSize} theme={theme} /> :
           <section className="empty-state" aria-labelledby="welcome-title">
             <svg className="book-icon" viewBox="0 0 80 64" fill="none" aria-hidden="true"><path d="M40 54C28 46 16 46 6 48V8c12-2 24 0 34 8 10-8 22-10 34-8v40c-10-2-22-2-34 6Zm0 0V16" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
             <h2 id="welcome-title">留一段时间，读一本书。</h2>
