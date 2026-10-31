@@ -149,6 +149,11 @@ test("navigates nested chapters, restores selection and clears old book contents
   await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "chapters.epub", mimeType: "application/epub+zip", buffer: await zip.generateAsync({ type: "nodebuffer" }) });
   const nav = page.getByRole("navigation", { name: "章节导航" });
   await expect(nav.getByRole("button", { name: "First chapter" })).toHaveAttribute("aria-current", "location");
+  await expect(page.getByRole("button", { name: "上一页" })).toBeDisabled();
+  await page.getByRole("button", { name: "下一页" }).click();
+  await expect(nav.getByRole("button", { name: "Second chapter", exact: true })).toHaveAttribute("aria-current", "location");
+  await page.getByRole("button", { name: "上一页" }).click();
+  await expect(nav.getByRole("button", { name: "First chapter" })).toHaveAttribute("aria-current", "location");
   await nav.getByRole("button", { name: "Nested section", exact: true }).click();
   await expect(page.frameLocator("iframe").last().getByRole("heading", { name: "Nested section body" })).toBeInViewport();
   await expect(nav.getByRole("button", { name: "Nested section", exact: true })).toHaveAttribute("aria-current", "location");
@@ -164,4 +169,45 @@ test("navigates nested chapters, restores selection and clears old book contents
   await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "new.epub", mimeType: "application/epub+zip", buffer: await sample("New book") });
   await expect(nav.getByRole("button", { name: "Chapter", exact: true })).toBeEnabled();
   await expect(nav.getByRole("button", { name: "Second chapter" })).toHaveCount(0);
+});
+
+test("turns one screen, restores progress, and stops at book boundaries", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "pages.epub", mimeType: "application/epub+zip", buffer: await sample("Page test", true) });
+  const previous = page.getByRole("button", { name: "上一页" });
+  const next = page.getByRole("button", { name: "下一页" });
+  await expect(next).toBeEnabled();
+  await expect(previous).toBeDisabled();
+  const scroller = page.locator(".epub-container");
+  const height = await scroller.evaluate(el => el.clientHeight);
+  await next.click();
+  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(height - 5);
+  await expect(previous).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => Object.entries(localStorage).find(([k]) => k.startsWith("epub-position:"))?.[1])).not.toContain("/4/2/1:0)");
+  await page.reload();
+  await expect(previous).toBeEnabled();
+  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(height - 80);
+  await previous.click();
+  // CFI restoration rounds to lines; return to exact top with another press if needed.
+  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeLessThan(80);
+  if (await scroller.evaluate(el => el.scrollTop > 1)) {
+    await expect(previous).toBeEnabled();
+    await previous.click();
+  }
+  await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBe(0);
+  await expect(previous).toBeDisabled();
+  await scroller.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect(page.getByText("已到结尾", { exact: true })).toBeVisible();
+  await expect(next).toBeDisabled();
+  await expect(previous).toBeEnabled();
+  await previous.click();
+  await expect(next).toBeEnabled();
+  await next.click();
+  await expect(page.getByText("已到结尾", { exact: true })).toBeVisible();
+  await expect(next).toBeDisabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "short.epub", mimeType: "application/epub+zip", buffer: await sample("Short book") });
+  await expect(page.getByText("全文已显示")).toBeVisible();
+  await expect(previous).toBeDisabled();
+  await expect(next).toBeDisabled();
 });

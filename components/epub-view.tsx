@@ -18,6 +18,8 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
   const [current, setCurrent] = useState("");
   const [busy, setBusy] = useState(true);
   const navigate = useRef<(href: string) => Promise<void>>(async () => {});
+  const turnPage = useRef<(direction: "prev" | "next") => Promise<void>>(async () => {});
+  const [edges, setEdges] = useState({ atStart: true, atEnd: true });
 
   useEffect(() => {
     setStatus("正在打开书籍…");
@@ -26,11 +28,13 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
     setToc([]);
     setCurrent("");
     setBusy(true);
+    setEdges({ atStart: true, atEnd: true });
     let active = true;
     let book: Book | undefined;
     let latestCfi = "";
     let id = "";
     let canSave = false;
+    let actionRunning = false;
     let scrollTimer: ReturnType<typeof setTimeout> | undefined;
     let rendition: (Rendition & { reportLocation(): void }) | undefined;
     const element = host.current;
@@ -83,6 +87,13 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
         rendition.on("relocated", (location: Location) => {
           if (!active) return;
           latestCfi = location.start.cfi;
+          // epub.js rounds page counts in scrolled mode, which can report atEnd
+          // before the scroller reaches the bottom. Use actual scroll bounds.
+          const viewport = element?.querySelector(".epub-container");
+          setEdges({
+            atStart: location.start.index === book?.spine.first().index && !!viewport && viewport.scrollTop <= 1,
+            atEnd: location.end.index === book?.spine.last().index && !!viewport && viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 1,
+          });
           const section = book?.spine.get(latestCfi);
           let selected = "";
           for (const item of chapters) {
@@ -99,7 +110,8 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
           persist();
         });
         navigate.current = async href => {
-          if (!active || !rendition) return;
+          if (!active || !rendition || actionRunning || !canSave) return;
+          actionRunning = true;
           setBusy(true);
           try {
             // Never hand external or non-spine URLs to the renderer.
@@ -108,7 +120,18 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
             if (active) rendition.reportLocation();
           } catch {
             if (active) setNotice("无法跳转到该章节，请选择其他章节或继续滚动阅读。");
-          } finally { if (active) setBusy(false); }
+          } finally { actionRunning = false; if (active) setBusy(false); }
+        };
+        turnPage.current = async direction => {
+          if (!active || !rendition || !canSave || actionRunning) return;
+          actionRunning = true;
+          setBusy(true);
+          try {
+            await rendition[direction]();
+            if (active) rendition.reportLocation();
+          } catch {
+            if (active) setNotice("翻页失败，请重试或通过目录跳转。");
+          } finally { actionRunning = false; if (active) setBusy(false); }
         };
         try { await rendition.display(saved || undefined); }
         catch (failure) {
@@ -133,5 +156,10 @@ export default function EpubView({ data, onTitle, contentsTarget }: { data: Arra
     {status && <p className="reader-message" role={error ? "alert" : "status"}>{status}</p>}
     {notice && <p className="reader-message" role="status">{notice}</p>}
     <div className="epub-host" ref={host} hidden={error} />
+    <div className="page-controls" role="group" aria-label="翻页">
+      <button className="quiet-button" disabled={busy || !!status || error || edges.atStart} onClick={() => { void turnPage.current("prev"); }}>上一页</button>
+      <span aria-live="polite">{!status && !error ? edges.atStart && edges.atEnd ? "全文已显示" : edges.atStart ? "已到开头" : edges.atEnd ? "已到结尾" : "按一屏翻页" : ""}</span>
+      <button className="quiet-button" disabled={busy || !!status || error || edges.atEnd} onClick={() => { void turnPage.current("next"); }}>下一页</button>
+    </div>
   </section>;
 }

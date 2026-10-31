@@ -1,5 +1,21 @@
 # AI workflow
 
+## 2026-10-31 — Increment 6: previous/next screen controls
+
+- Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
+- Read AGENTS.md and epub.js rendition/continuous-manager implementation.
+- Added previous/next controls using rendition.prev/next with a synchronous action
+  guard shared with TOC jumps. Loading/error/busy and book-edge states disable
+  unavailable controls. Each turn reports CFI and updates existing chapter markers.
+- Tests caught premature epub.js atEnd flags in scrolled mode. Edge detection now
+  combines the first/last spine section with actual scroller geometry.
+- Added browser coverage for screen movement, forward/backward chapter crossing,
+  refresh recovery, exact start/end and one-screen books. Fixed an assertion that
+  incorrectly treated a transient busy button as a settled edge state.
+- Time: approximately 7 minutes (estimate; no exact start timer recorded).
+- Final validation: 5 component tests and 6 Edge browser tests passed; production
+  build and TypeScript checking passed. No dependencies were added.
+
 ## 2026-10-31 — Increment 5: chapter navigation
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.

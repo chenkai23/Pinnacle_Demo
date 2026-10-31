@@ -62,7 +62,13 @@ chapter or section to jump; the current entry follows reading position and is
 restored after refresh. Books without a TOC show a message. Invalid targets show
 a notice and leave reading available.
 
-Page buttons, settings, a standalone sample EPUB and Docker
+Previous/next buttons move by one reading viewport in continuous scroll mode,
+including across chapter boundaries. They are disabled during loading/navigation
+and at the actual start/end of the book. Short books fitting one screen disable
+both buttons. Page turns update the existing CFI progress and chapter marker;
+these are screen steps, not fixed printed-page numbers.
+
+Settings, a standalone sample EPUB and Docker
 support remain future increments.
 No backend, external API or remote font is used.
 
