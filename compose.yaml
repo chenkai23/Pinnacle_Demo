@@ -1,0 +1,6 @@
+services:
+  reader:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${READER_PORT:-3000}:3000"

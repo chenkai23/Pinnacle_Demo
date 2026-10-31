@@ -1,5 +1,16 @@
 # AI workflow
 
+## 2026-10-31 — Linux Docker startup validation
+
+- Tools: OpenAI Codex desktop, terminal/apply_patch, Vitest, TypeScript and SSH.
+- Scope requested by user: prepare Docker files locally, upload source to an
+  existing Linux server and verify one-command build/start; no public deployment.
+- Added a Node.js 22 multi-stage standalone image, non-root runtime, healthcheck,
+  loopback-only Compose port and context exclusions for books and environment files.
+- Added Docker configuration coverage and a repeatable Linux smoke script that
+  checks readiness, runtime user, HTTP response and referenced static assets.
+- Validation and duration: in progress; Linux results will be recorded after execution.
+
 ## 2026-10-31 — Acceptance with two user-supplied EPUBs
 
 - User waived the sample EPUB and deferred Docker. No product behavior changed.

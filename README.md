@@ -1,5 +1,33 @@
 # Local EPUB Reader
 
+## Docker (Linux)
+
+Prerequisites: Docker Engine with the Compose plugin, and network access to
+Docker Hub and the npm registry for the first build. From the source directory:
+
+```sh
+docker compose up -d --build
+```
+
+The multi-stage build installs locked dependencies and produces a standalone
+Next.js server on Node.js 22. The runtime runs as a non-root user and includes
+a healthcheck. Check readiness with `docker compose ps` and logs with
+`docker compose logs --tail=100 reader`. Stop with `docker compose down`.
+Use `READER_PORT=3001 docker compose up -d --build` if port 3000 is occupied.
+
+Run the repeatable Linux smoke test (build, readiness, HTTP and static assets):
+
+```sh
+sh scripts/docker-smoke.sh
+```
+
+The port binds to loopback only: http://localhost:3000 on the Docker host.
+This is a Linux Docker startup validation, not a public deployment. Browser
+book storage stays in IndexedDB/localStorage; no server data volume is needed.
+Remote browser access would separately require HTTPS or an SSH localhost tunnel
+because EPUB identifiers use Web Crypto. Books, environment files and local
+build output are excluded from the image context. No database is required.
+
 A browser-local EPUB bookshelf and paginated reader using Next.js App Router,
 TypeScript, React and epub.js. No backend, external API or remote fonts.
 
@@ -43,7 +71,7 @@ is retained during reflow until the next page turn or chapter jump to avoid drif
 Progress is approximate by text locations, not physical page count. Changing
 layout briefly reloads the rendition. Book scripts are disabled in sandboxed
 iframes. DRM-protected EPUBs and PDF are unsupported. No accounts, cloud sync,
-search, annotations or AI features. Docker remains pending; the user waived the standalone sample EPUB.
+search, annotations or AI features. The user waived the standalone sample EPUB. See Docker instructions below.
 
 ## Architecture
 
@@ -89,4 +117,4 @@ interface theme changes leave the chosen reading background unchanged.
 ## Acceptance
 
 See [ACCEPTANCE.md](ACCEPTANCE.md) for the two-real-book acceptance results and
-verification limits. A self-authored sample EPUB is waived; Docker is deferred.
+verification limits. A self-authored sample EPUB is waived.
