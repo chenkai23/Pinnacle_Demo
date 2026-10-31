@@ -17,15 +17,17 @@ bookshelf. Clearing browser site data removes saved books and preferences.
 ### npm
 
 Environment: Node.js 22.x and npm 10.x. Verified on Windows and directly on
-Ubuntu 22.04 with Node.js 22.23.4 and npm 10.9.9. Initial dependency installation
-requires access to the npm registry. Run from the project directory:
+Ubuntu 22.04 with Node.js 22.23.4 and npm 10.9.9. Clone and start:
 
 ```sh
+git clone https://github.com/chenkai23/Pinnacle_Demo.git
+cd Pinnacle_Demo
 npm ci
 npm run dev
 ```
 
-For a production build and server:
+Alternatively, after cloning and entering `Pinnacle_Demo`, build and start
+the production server:
 
 ```sh
 npm ci
@@ -41,13 +43,11 @@ has been verified to serve the page and static assets.
 ### Docker
 
 Environment: Linux Docker Engine and the Docker Compose plugin (`docker compose`).
-Verified on Ubuntu 22.04 x86_64 with Docker 29.5.3 and Compose v5.1.4. Node.js and
-npm are provided inside the image; they are not required on the host. The first
-build requires access to Docker Hub and the npm registry.
-
-Build and start from the project directory:
+Verified on Ubuntu 22.04 x86_64 with Docker 29.5.3 and Compose v5.1.4. 
 
 ```sh
+git clone https://github.com/chenkai23/Pinnacle_Demo.git
+cd Pinnacle_Demo
 docker compose up -d --build
 ```
 
