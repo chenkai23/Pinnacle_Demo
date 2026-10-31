@@ -5,7 +5,7 @@ import path from "node:path";
 
 test("acceptance with local Alice and Wizard of Oz", async ({ page }) => {
   test.setTimeout(90000);
-  const files = ["Alice's Adventures in Wonderland by Lewis Carroll.epub", "The Wonderful Wizard of Oz by L. Frank Baum.epub"].map(name => path.resolve(name));
+  const files = ["Alice's Adventures in Wonderland by Lewis Carroll.epub", "The Wonderful Wizard of Oz by L. Frank Baum.epub"].map(name => path.resolve("ebook", name));
   test.skip(files.some(file => !existsSync(file)), "Requires both optional local EPUBs");
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
   const keys = files.map(file => "epub-position:" + createHash("sha256").update(readFileSync(file)).digest("hex"));

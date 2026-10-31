@@ -4,7 +4,7 @@
 
 ## 环境与边界
 
-- 使用根目录的 Alice’s Adventures in Wonderland 和 The Wonderful Wizard of Oz。
+- 使用 `ebook/` 目录的 Alice’s Adventures in Wonderland 和 The Wonderful Wizard of Oz。
 - 在独立 Playwright 浏览器上下文重新导入两本原文件；未读取、修改用户现有浏览器书架。
 - 当前 Edge 窗口的电脑控制因工具无法确认 URL 而停止，因此不包含原会话数据验收。
 - 桌面 1440×900；窄屏 390×844 为已有回归覆盖，非真实移动设备测试。

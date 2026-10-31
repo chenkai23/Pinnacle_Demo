@@ -240,6 +240,7 @@ test("duplicate and corrupt imports preserve library", async ({ page }) => {
 
 test("real Alice navigation and pagination", async ({ page }) => {
   const file = path.resolve(
+    "ebook",
     "Alice's Adventures in Wonderland by Lewis Carroll.epub",
   );
   test.skip(!existsSync(file), "Optional local book");
@@ -394,6 +395,7 @@ test("repairs covers in previously migrated records without reimport", async ({
   page,
 }) => {
   const file = path.resolve(
+    "ebook",
     "Alice's Adventures in Wonderland by Lewis Carroll.epub",
   );
   test.skip(!existsSync(file), "Optional local Alice");

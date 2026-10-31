@@ -1,5 +1,16 @@
 # AI workflow
 
+## 2026-10-31 — Include the two EPUB test fixtures
+
+- User requested tracking the two existing test books under ebook/ and including
+  them in Docker. Moved both files without changing their bytes; added Git and
+  Docker ignore exceptions for that directory and copied it to /app/ebook in the
+  runtime image. The app does not serve or auto-import these files.
+- Updated real-book browser fixture paths, documentation, fixture ZIP metadata
+  checks and the Linux smoke test to assert both files exist in the runtime.
+- Tools: Codex terminal/apply_patch, Vitest, TypeScript, Playwright and SSH/Docker.
+- Validation in progress; server image result will be recorded after execution.
+
 ## 2026-10-31 — Linux Docker startup validation
 
 - Tools: OpenAI Codex desktop, terminal/apply_patch, Vitest, TypeScript and SSH.

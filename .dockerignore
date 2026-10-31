@@ -4,6 +4,7 @@ node_modules
 .git
 .env*
 **/*.epub
+!ebook/*.epub
 *.tsbuildinfo
 test-results
 playwright-report

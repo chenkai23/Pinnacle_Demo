@@ -6,6 +6,11 @@ docker compose exec -T reader node -e '
 const assert = require("node:assert/strict");
 (async () => {
   assert.notEqual(process.getuid(), 0, "runtime must not run as root");
+  const fs = require("node:fs");
+  for (const name of ["Alice\u0027s Adventures in Wonderland by Lewis Carroll.epub", "The Wonderful Wizard of Oz by L. Frank Baum.epub"]) {
+    const data = fs.readFileSync(`/app/ebook/${name}`);
+    assert.equal(data.subarray(0, 2).toString(), "PK", name);
+  }
   const response = await fetch("http://127.0.0.1:3000");
   assert.equal(response.status, 200);
   const html = await response.text();
@@ -16,6 +21,6 @@ const assert = require("node:assert/strict");
     const result = await fetch(new URL(asset.replaceAll("&amp;", "&"), "http://127.0.0.1:3000"));
     assert.equal(result.status, 200, asset);
   }
-  console.log(`PASS: non-root runtime, HTTP 200, ${assets.length} static assets`);
+  console.log(`PASS: two test EPUBs, non-root runtime, HTTP 200, ${assets.length} static assets`);
 })().catch(error => { console.error(error); process.exit(1); });
 '

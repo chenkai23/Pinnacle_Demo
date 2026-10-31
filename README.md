@@ -32,7 +32,9 @@ This is a Linux Docker startup validation, not a public deployment. Browser
 book storage stays in IndexedDB/localStorage; no server data volume is needed.
 Remote browser access would separately require HTTPS or an SSH localhost tunnel
 because EPUB identifiers use Web Crypto. Books, environment files and local
-build output are excluded from the image context. No database is required.
+build output are excluded from the image context. The two tracked test EPUBs in
+`ebook/` are included in the runtime image at `/app/ebook/`; they are not served
+publicly or automatically imported into the browser bookshelf. No database is required.
 
 A browser-local EPUB bookshelf and paginated reader using Next.js App Router,
 TypeScript, React and epub.js. No backend, external API or remote fonts.
@@ -104,9 +106,8 @@ npm run test:e2e
 Browser tests use Microsoft Edge (`npx playwright install msedge` if needed).
 They generate EPUBs in memory and verify the shelf, tabs, independent progress,
 pagination, styles, refresh, deduplication, corruption, multi-delete, migration,
-delete failure and narrow viewports. The optional root-level
-`Alice's Adventures in Wonderland by Lewis Carroll.epub` adds real-book cover,
-chapter and page-turn checks. Root EPUB files are ignored and not publicly served.
+delete failure and narrow viewports. The two tracked EPUBs in `ebook/` provide
+real-book cover, chapter and page-turn checks. EPUBs elsewhere remain ignored.
 
 ## Display refinements
 
