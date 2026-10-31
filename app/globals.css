@@ -16,6 +16,12 @@ h1 { font-size: 17px; font-weight: 600; margin: 5px 0 0; }
 .contents { flex: 0 0 240px; padding: 32px 24px; border-right: 1px solid var(--line); }
 .contents h2 { font-size: 15px; margin: 0 0 24px; }
 .contents p { color: var(--muted); font-size: 14px; line-height: 1.9; }
+.chapter-navigation { max-height: calc(100dvh - 200px); overflow-y: auto; }
+.chapter-navigation ul { list-style: none; padding: 0; margin: 0; }
+.chapter-navigation ul ul { padding-left: 14px; }
+.chapter-navigation button { width: 100%; border: 0; padding: 10px 12px; text-align: left; font-size: 14px; line-height: 1.6; color: var(--ink); background: transparent; overflow-wrap: anywhere; }
+.chapter-navigation button:hover { background: #e1e7ef; }
+.chapter-navigation button[aria-current] { color: #fff; background: var(--accent); }
 .reading-area { flex: 1; min-width: 0; padding: 40px; display: flex; align-items: center; flex-direction: column; gap: 12px; }
 .epub-reader { position: relative; width: 100%; max-width: 900px; background: #fff; border: 1px solid var(--line); }
 .epub-host { height: calc(100dvh - 180px); min-height: 400px; }

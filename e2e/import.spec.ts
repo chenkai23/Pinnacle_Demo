@@ -87,9 +87,14 @@ test("renders the locally supplied Alice EPUB", async ({ page }) => {
   await expect(page.locator("iframe").first()).toBeVisible();
   await expect.poll(async () => (await Promise.all(page.frames().slice(1).map(f => f.locator("body").textContent().catch(() => "")))).join(" ")).toMatch(/Alice|Wonderland/i);
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  const aliceChapter = page.getByRole("navigation", { name: "章节导航" }).getByRole("button", { name: "CHAPTER II. The Pool of Tears", exact: true });
+  await expect(aliceChapter).toBeEnabled();
+  await aliceChapter.click();
+  await expect(aliceChapter).toHaveAttribute("aria-current", "location");
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/Alice/i);
   await expect(page.locator("iframe").first()).toBeVisible();
+  await expect(aliceChapter).toHaveAttribute("aria-current", "location");
 });
 
 test("restores CFI after scrolling and isolates positions by file content", async ({ page }) => {
@@ -131,4 +136,32 @@ test("restores CFI after scrolling and isolates positions by file content", asyn
   await page.reload();
   await expect(page.getByText("阅读位置无法保存，请检查浏览器存储权限或空间。你仍可继续阅读。")).toBeVisible();
   await expect(page.frameLocator("iframe").first().getByText(/^Paragraph 0\./)).toBeVisible();
+});
+
+test("navigates nested chapters, restores selection and clears old book contents", async ({ page }) => {
+  const zip = await JSZip.loadAsync(await sample("Chapter book"));
+  const opf = await zip.file("book.opf")!.async("string");
+  zip.file("book.opf", opf.replace("</manifest>", '<item id="second" href="second.xhtml" media-type="application/xhtml+xml"/></manifest>').replace("</spine>", '<itemref idref="second"/></spine>'));
+  zip.file("nav.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml">First chapter</a></li><li><a href="second.xhtml">Second chapter</a><ol><li><a href="second.xhtml#nested">Nested section</a></li></ol></li><li><a href="missing.xhtml">Broken chapter</a></li></ol></nav></body></html>');
+  zip.file("second.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Second</title></head><body><h1>Second chapter body</h1>' + '<p>A long walk through the garden.</p>'.repeat(30) + '<h2 id="nested">Nested section body</h2>' + '<p>The rabbit was waiting.</p>'.repeat(50) + '</body></html>');
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "导入 EPUB" })).toBeEnabled();
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "chapters.epub", mimeType: "application/epub+zip", buffer: await zip.generateAsync({ type: "nodebuffer" }) });
+  const nav = page.getByRole("navigation", { name: "章节导航" });
+  await expect(nav.getByRole("button", { name: "First chapter" })).toHaveAttribute("aria-current", "location");
+  await nav.getByRole("button", { name: "Nested section", exact: true }).click();
+  await expect(page.frameLocator("iframe").last().getByRole("heading", { name: "Nested section body" })).toBeInViewport();
+  await expect(nav.getByRole("button", { name: "Nested section", exact: true })).toHaveAttribute("aria-current", "location");
+  await page.reload();
+  await expect(nav.getByRole("button", { name: "Nested section", exact: true })).toHaveAttribute("aria-current", "location");
+  await page.getByRole("button", { name: "目录", exact: true }).click();
+  await expect(nav).not.toBeVisible();
+  await page.getByRole("button", { name: "目录", exact: true }).click();
+  await nav.getByRole("button", { name: "Broken chapter" }).click();
+  await expect(page.getByText("无法跳转到该章节，请选择其他章节或继续滚动阅读。")).toBeVisible();
+  await nav.getByRole("button", { name: "First chapter" }).click();
+  await expect(nav.getByRole("button", { name: "First chapter" })).toHaveAttribute("aria-current", "location");
+  await page.getByLabel("选择 EPUB 文件").setInputFiles({ name: "new.epub", mimeType: "application/epub+zip", buffer: await sample("New book") });
+  await expect(nav.getByRole("button", { name: "Chapter", exact: true })).toBeEnabled();
+  await expect(nav.getByRole("button", { name: "Second chapter" })).toHaveCount(0);
 });

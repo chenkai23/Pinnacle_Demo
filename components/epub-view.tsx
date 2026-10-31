@@ -5,17 +5,27 @@ import type Book from "epubjs/types/book";
 import type { Location } from "epubjs";
 import type Rendition from "epubjs/types/rendition";
 import { bookId, loadPosition, savePosition } from "../lib/reading-position";
+import { createPortal } from "react-dom";
+import type { NavItem } from "epubjs";
+import ChapterNavigation from "./chapter-navigation";
 
-export default function EpubView({ data, onTitle }: { data: ArrayBuffer; onTitle: (title: string) => void }) {
+export default function EpubView({ data, onTitle, contentsTarget }: { data: ArrayBuffer; onTitle: (title: string) => void; contentsTarget: HTMLElement | null }) {
   const host = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState("正在打开书籍…");
   const [error, setError] = useState(false);
   const [notice, setNotice] = useState("");
+  const [toc, setToc] = useState<NavItem[]>([]);
+  const [current, setCurrent] = useState("");
+  const [busy, setBusy] = useState(true);
+  const navigate = useRef<(href: string) => Promise<void>>(async () => {});
 
   useEffect(() => {
     setStatus("正在打开书籍…");
     setError(false);
     setNotice("");
+    setToc([]);
+    setCurrent("");
+    setBusy(true);
     let active = true;
     let book: Book | undefined;
     let latestCfi = "";
@@ -42,7 +52,7 @@ export default function EpubView({ data, onTitle }: { data: ArrayBuffer; onTitle
     }, 20000);
     async function open() {
       try {
-        const { default: ePub } = await import("epubjs");
+        const { default: ePub, EpubCFI } = await import("epubjs");
         if (!active || !host.current) return;
         book = ePub();
         // Await open directly: book.ready can stay pending when malformed files fail.
@@ -51,6 +61,11 @@ export default function EpubView({ data, onTitle }: { data: ArrayBuffer; onTitle
         const metadata = await book.loaded.metadata;
         if (!active) return;
         onTitle(metadata.title || "未命名书籍");
+        const navigation = await book.loaded.navigation;
+        if (!active) return;
+        setToc(navigation.toc);
+        const flatten = (items: NavItem[]): NavItem[] => items.flatMap(item => [item, ...flatten(item.subitems || [])]);
+        const chapters = flatten(navigation.toc);
         let saved: string | null = null;
         try {
           id = await bookId(data);
@@ -68,8 +83,33 @@ export default function EpubView({ data, onTitle }: { data: ArrayBuffer; onTitle
         rendition.on("relocated", (location: Location) => {
           if (!active) return;
           latestCfi = location.start.cfi;
+          const section = book?.spine.get(latestCfi);
+          let selected = "";
+          for (const item of chapters) {
+            if (!section || book?.spine.get(item.href)?.index !== section.index) continue;
+            if (!selected) selected = item.href;
+            const fragment = item.href.split("#")[1];
+            if (!fragment) { selected = item.href; continue; }
+            try {
+              const anchor = section.document?.getElementById(decodeURIComponent(fragment));
+              if (anchor && new EpubCFI().compare(section.cfiFromElement(anchor), latestCfi) <= 0) selected = item.href;
+            } catch { /* A malformed fragment should not interrupt reading. */ }
+          }
+          setCurrent(selected);
           persist();
         });
+        navigate.current = async href => {
+          if (!active || !rendition) return;
+          setBusy(true);
+          try {
+            // Never hand external or non-spine URLs to the renderer.
+            if (!book?.spine.get(href)) throw new Error("Unknown chapter");
+            await rendition.display(href);
+            if (active) rendition.reportLocation();
+          } catch {
+            if (active) setNotice("无法跳转到该章节，请选择其他章节或继续滚动阅读。");
+          } finally { if (active) setBusy(false); }
+        };
         try { await rendition.display(saved || undefined); }
         catch (failure) {
           if (!saved || !active) throw failure;
@@ -77,6 +117,7 @@ export default function EpubView({ data, onTitle }: { data: ArrayBuffer; onTitle
           await rendition.display();
         }
         canSave = true;
+        if (active) setBusy(false);
         persist();
         if (active) { setStatus(""); setError(false); }
       } catch {
@@ -88,6 +129,7 @@ export default function EpubView({ data, onTitle }: { data: ArrayBuffer; onTitle
   }, [data, onTitle]);
 
   return <section className="epub-reader" aria-label="书籍正文">
+    {contentsTarget && createPortal(<ChapterNavigation items={toc} current={current} busy={busy} onSelect={href => { void navigate.current(href); }} />, contentsTarget)}
     {status && <p className="reader-message" role={error ? "alert" : "status"}>{status}</p>}
     {notice && <p className="reader-message" role="status">{notice}</p>}
     <div className="epub-host" ref={host} hidden={error} />

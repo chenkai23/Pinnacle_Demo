@@ -27,7 +27,7 @@ npm run test:e2e
 ```mermaid
 flowchart TD
     Page[Next.js App Router page] --> Shell[Client reader shell]
-    Shell --> Contents[Collapsible contents panel]
+    Shell --> Contents[Collapsible nested chapter navigation]
     Shell --> Area[Reading area / empty state]
     Area --> Epub[Browser-only epub.js renderer]
     File[Local EPUB file] --> Validation[ZIP and container validation]
@@ -57,7 +57,12 @@ The renderer may round the restored location to a nearby line in the same paragr
 Invalid saved positions fall back to the beginning. Storage failures show a notice
 and do not prevent reading. Allow a moment after scrolling for position updates.
 
-Page buttons, chapter navigation, settings, a standalone sample EPUB and Docker
+The sidebar renders EPUB chapter navigation, including nested entries. Click a
+chapter or section to jump; the current entry follows reading position and is
+restored after refresh. Books without a TOC show a message. Invalid targets show
+a notice and leave reading available.
+
+Page buttons, settings, a standalone sample EPUB and Docker
 support remain future increments.
 No backend, external API or remote font is used.
 
@@ -66,6 +71,8 @@ They generate a small EPUB in memory to check rendering, replacement, invalid in
 script sandboxing, refresh recovery, corrupt stored data and storage failures.
 They also check CFI recovery after a single scroll, per-file isolation, reimporting
 a renamed file, invalid CFI fallback and unavailable position storage.
+Chapter checks cover nested anchor jumps, current-entry highlighting, refresh,
+invalid targets and replacing the old book's TOC.
 An additional test uses the optional root-level file
 `Alice's Adventures in Wonderland by Lewis Carroll.epub` when present. Root EPUBs
 are ignored by Git and are never served as public assets.

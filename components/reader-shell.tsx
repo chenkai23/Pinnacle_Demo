@@ -15,6 +15,7 @@ export default function ReaderShell() {
   const [error, setError] = useState("");
   const [restoring, setRestoring] = useState(true);
   const input = useRef<HTMLInputElement>(null);
+  const [contentsTarget, setContentsTarget] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -65,13 +66,15 @@ export default function ReaderShell() {
       </header>
       <div className="reader-body">
         <aside id="contents" className="contents" hidden={!contentsOpen} aria-label="书籍目录">
-          <h2>目录</h2><p>{data ? "章节导航将在后续接入，可在正文区域滚动阅读。" : "打开书籍后，章节将在这里显示。"}</p>
+          <h2>目录</h2>
+          {!data && <p>打开书籍后，章节将在这里显示。</p>}
+          <div ref={setContentsTarget} />
         </aside>
         <main className="reading-area">
           {error && <p className="import-error" role="alert">{error}</p>}
           {restoring && <p role="status">正在恢复本地书籍…</p>}
           {loading && <p role="status">正在检查并保存 EPUB 文件…</p>}
-          {data ? <EpubView data={data} onTitle={setTitle} /> :
+          {data ? <EpubView data={data} onTitle={setTitle} contentsTarget={contentsTarget} /> :
           <section className="empty-state" aria-labelledby="welcome-title">
             <svg className="book-icon" viewBox="0 0 80 64" fill="none" aria-hidden="true"><path d="M40 54C28 46 16 46 6 48V8c12-2 24 0 34 8 10-8 22-10 34-8v40c-10-2-22-2-34 6Zm0 0V16" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
             <h2 id="welcome-title">留一段时间，读一本书。</h2>

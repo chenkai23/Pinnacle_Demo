@@ -1,5 +1,24 @@
 # AI workflow
 
+## 2026-10-31 — Increment 5: chapter navigation
+
+- Tool: OpenAI Codex desktop, terminal/apply_patch, Vitest and Playwright/Edge.
+- Read AGENTS.md and installed epub.js navigation/section APIs.
+- Render nested EPUB TOC entries into the sidebar via a React portal. Clicking
+  an entry calls rendition.display; relocation updates the current-entry marker
+  using spine section and anchor CFI comparisons. Existing position persistence
+  records chapter jumps. External/non-spine targets are rejected with a notice.
+- Added component tests for nested lists, selection, current marker and empty TOC;
+  browser coverage for chapter/anchor jumps, refresh, collapse, invalid targets,
+  old-TOC cleanup on replacement, and the user's real Alice book.
+- Time: approximately 5 minutes (estimate, no exact timer recorded).
+- Final validation: 5 component tests and 5 Edge browser tests passed, including
+  jumping to Alice Chapter II and restoring its current-entry marker after refresh.
+  Production build and TypeScript checking passed. No dependencies were added.
+- Current-entry highlighting tracks the viewport's starting location; multiple
+  headings on a short page can share one viewport, rather than each becoming
+  the current entry merely because it was clicked.
+
 ## 2026-10-31 — Increment 4: reading position recovery
 
 - Tool: OpenAI Codex desktop, terminal/apply_patch, Playwright/Edge and Vitest.
