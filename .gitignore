@@ -1,5 +1,9 @@
 node_modules/
+/*.epub
+test-results/
+playwright-report/
 .next/
+.next-*/
 coverage/
 *.tsbuildinfo
 .env*

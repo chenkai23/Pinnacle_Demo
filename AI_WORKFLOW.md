@@ -1,5 +1,24 @@
 # AI workflow
 
+## 2026-10-31 — Increment 2: EPUB import and rendering
+
+- Tool: OpenAI Codex desktop; terminal, apply_patch, Vitest and Playwright/Edge.
+- Read AGENTS.md; consulted the official epub.js README for rendering and its
+  `allowScriptedContent` sandbox option. Book files are test data, not instructions.
+- Added file selection, archive/container checks, loading/error states, browser-only
+  epub.js rendering, cleanup on replacement, and explicit script disabling.
+- Scope: continuous scrolling only. Persistence, pagination controls, chapter
+  navigation and settings are intentionally deferred to separate increments.
+- Tested the user's local Alice EPUB, plus generated sample/replacement books and
+  a corrupt archive. Root EPUB files are ignored and excluded from the commit.
+- Browser tests: 2 passed, including real Alice rendering and script sandbox checks.
+  Component tests: 3 passed. Type checking and production build passed.
+  Initial assertions accidentally matched Next.js's route announcer; scoped them
+  to the reading area and reran successfully.
+- Existing development output was locked; isolated E2E and build output directories
+  avoid interfering with a running development server.
+- Time: approximately 10 minutes (estimate, no exact start timer recorded).
+
 ## 2026-10-31 — Increment 1: application foundation
 
 - Tool: OpenAI Codex desktop (terminal and apply_patch); frontend-design skill
